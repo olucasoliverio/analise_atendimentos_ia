@@ -1,0 +1,211 @@
+// prisma/schema.prisma
+// ✅ SCHEMA CORRIGIDO - Email do Customer sem unique constraint
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// CACHE DE AGENTES DO FRESHCHAT
+// ==========================================
+
+model Agent {
+  id                String   @id
+  email             String?  @unique  // ✅ Agentes podem ter email único
+  firstName         String
+  lastName          String
+  displayName       String
+  active            Boolean  @default(true)
+  
+  lastFetchedAt     DateTime @default(now())
+  fetchCount        Int      @default(1)
+  
+  conversations     Conversation[] @relation("AssignedAgent")
+  
+  @@index([email])
+  @@index([lastFetchedAt])
+  @@index([active])
+  @@map("agents")
+}
+
+// ==========================================
+// CACHE DE CLIENTES - ✅ CORRIGIDO
+// ==========================================
+
+model Customer {
+  id                String   @id
+  email             String?  // ✅ REMOVIDO @unique - clientes podem ter email duplicado ou nulo
+  firstName         String?
+  lastName          String?
+  displayName       String?
+  phone             String?
+  
+  lastFetchedAt     DateTime @default(now())
+  fetchCount        Int      @default(1)
+  
+  conversations     Conversation[] @relation("CustomerConversations")
+  
+  @@index([email])  // ✅ Mantém índice para performance mas não unique
+  @@index([lastFetchedAt])
+  @@map("customers")
+}
+
+// ==========================================
+// CONVERSAS
+// ==========================================
+
+model Conversation {
+  id                  String   @id
+  
+  customerId          String
+  customer            Customer @relation("CustomerConversations", fields: [customerId], references: [id], onDelete: Cascade)
+  
+  customerName        String?
+  customerEmail       String?
+  
+  assignedAgentId     String?
+  assignedAgent       Agent?   @relation("AssignedAgent", fields: [assignedAgentId], references: [id], onDelete: SetNull)
+  
+  assignedAgentName   String?
+  
+  status              String?
+  channelId           String?
+  priority            Int      @default(0)
+  
+  createdAt           DateTime
+  updatedAt           DateTime
+  lastFetchedAt       DateTime @default(now())
+  
+  messageCount        Int?
+  customerMessageCount Int?
+  agentMessageCount   Int?
+  averageResponseTime Int?
+  
+  analyses            Analysis[]
+  messages            Message[]
+  
+  @@index([customerId])
+  @@index([customerEmail])
+  @@index([assignedAgentId])
+  @@index([assignedAgentName])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@index([lastFetchedAt])
+  @@map("conversations")
+}
+
+// ==========================================
+// MENSAGENS
+// ==========================================
+
+model Message {
+  id                String   @id @default(cuid())
+  
+  conversationId    String
+  conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  freshchatMessageId String   @unique
+  messageType       String
+  actorType         String
+  actorId           String?
+  actorName         String?
+  
+  content           String   @db.Text
+  hasMedia          Boolean  @default(false)
+  mediaUrls         String[]
+  
+  isImportantNote   Boolean  @default(false)
+  
+  createdAt         DateTime
+  lastFetchedAt     DateTime @default(now())
+  
+  @@index([conversationId])
+  @@index([freshchatMessageId])
+  @@index([actorType])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+// ==========================================
+// ANÁLISES
+// ==========================================
+
+model Analysis {
+  id                     String   @id @default(cuid())
+  
+  conversationId         String   @unique
+  conversation           Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  // Relação removida do Analysis direto para User
+  history                AnalysisHistory[]
+  
+  executiveSummary       String   @db.Text
+  fullAnalysisText       String   @db.Text @default("")
+  
+  mainProblem            Json?    // Mudou para JSON para mapear problema_principal
+  timeline               Json?
+  handoffs               Json?    // Nó participacao_handoffs
+  agentConduct           Json?    // Nó conducao_atendimento
+  
+  riskLevel              String   @default("LOW")
+  riskRecontact          String   @default("LOW")
+  riskDissatisfaction    String   @default("LOW")
+  riskChurn              String   @default("LOW")
+  
+  recommendedActions     Json?
+  keyEvidences           Json?    // Nó evidencias_chave
+  
+  tokensUsed             Int?
+  processingTime         Int?
+  mediaProcessed         Int      @default(0)
+  
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  
+  @@index([conversationId])
+  @@index([riskLevel])
+  @@map("analyses")
+}
+
+// ==========================================
+// HISTÓRICO DE ANÁLISES
+// ==========================================
+
+model AnalysisHistory {
+  id             String   @id @default(cuid())
+  
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  analysisId     String
+  analysis       Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  viewedAt       DateTime @default(now())
+
+  @@unique([userId, analysisId])
+  @@index([userId, viewedAt(sort: Desc)])
+  @@map("analysis_history")
+}
+
+// ==========================================
+// USUÁRIOS
+// ==========================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  history AnalysisHistory[]
+
+  @@index([email, createdAt])
+  @@map("users")
+}

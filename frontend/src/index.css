@@ -1,0 +1,215 @@
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import '@fontsource/outfit/500.css';
+@import '@fontsource/outfit/600.css';
+@import '@fontsource/outfit/700.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-surface-50 text-surface-900 font-sans antialiased selection:bg-brand-200 selection:text-brand-900;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display tracking-tight text-surface-900;
+  }
+}
+
+@layer components {
+
+  /* Layout & Cards */
+  .card-glass {
+    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-glass rounded-2xl transition-all duration-300;
+  }
+
+  .card-glass-hover {
+    @apply card-glass hover:shadow-lg hover:border-brand-200 hover:-translate-y-1;
+  }
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 active:scale-95 cursor-pointer;
+  }
+
+  .btn-primary {
+    @apply bg-brand-600 outline-brand-600 text-white shadow-soft shadow-brand-500/30 hover:bg-brand-700 hover:shadow-brand-500/50 focus-visible:ring-brand-500;
+  }
+
+  .btn-secondary {
+    @apply bg-white border border-surface-200 text-surface-700 hover:bg-surface-50 hover:border-surface-300 hover:text-surface-900 focus-visible:ring-surface-200 shadow-sm;
+  }
+
+  .btn-ghost {
+    @apply text-surface-600 hover:text-surface-900 hover:bg-surface-100 focus-visible:ring-surface-200;
+  }
+
+  /* Inputs */
+  .input {
+    @apply w-full px-4 py-2.5 bg-white border border-surface-200 rounded-xl text-surface-900 placeholder:text-surface-400 transition-all duration-200 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 hover:border-surface-300;
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide uppercase;
+  }
+
+  .badge-soft-brand {
+    @apply bg-brand-50 text-brand-700 border border-brand-100;
+  }
+}
+
+/* Custom Audio Player Styles (Redesenhados para combinar com a interface moderna) */
+audio {
+  height: 36px;
+  border-radius: 8px;
+  @apply shadow-sm;
+}
+
+audio::-webkit-media-controls-panel {
+  background-color: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(8px);
+  border-radius: 8px;
+}
+
+/* Staggered Animations Custom Class */
+.animate-stagger-1 {
+  animation-delay: 50ms;
+}
+
+.animate-stagger-2 {
+  animation-delay: 100ms;
+}
+
+.animate-stagger-3 {
+  animation-delay: 150ms;
+}
+
+.animate-stagger-4 {
+  animation-delay: 200ms;
+}
+
+.animate-stagger-5 {
+  animation-delay: 250ms;
+}
+
+/* Existing Print Styles Maintained */
+.print-risk-cause-stack {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .app-navbar,
+  .print-hidden {
+    display: none !important;
+  }
+
+  .analysis-print-root {
+    min-height: auto !important;
+    background: #fff !important;
+  }
+
+  .analysis-print-root .sticky {
+    position: static !important;
+    top: auto !important;
+    box-shadow: none !important;
+  }
+
+  .analysis-print-root .max-w-6xl {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .analysis-print-root .shadow-sm,
+  .analysis-print-root .shadow-lg,
+  .card-glass {
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+
+  .analysis-print-root .grid.grid-cols-3.gap-6 {
+    display: block !important;
+  }
+
+  .analysis-print-root .analysis-main-column {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .analysis-print-root .analysis-main-column.space-y-6> :not([hidden])~ :not([hidden]) {
+    margin-top: 0 !important;
+  }
+
+  .analysis-print-root .p-6 {
+    padding: 12px !important;
+  }
+
+  .analysis-print-root .px-6 {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .analysis-print-root .py-4,
+  .analysis-print-root .py-8 {
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+  }
+
+  .analysis-print-root .mb-8,
+  .analysis-print-root .mt-12 {
+    margin-bottom: 12px !important;
+  }
+
+  .print-risk-cause-stack {
+    display: block !important;
+    order: 2;
+  }
+
+  .analysis-print-root .print-risk-cause-stack .rounded-2xl {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-order-1 {
+    order: 1;
+  }
+
+  .print-order-3 {
+    order: 3;
+  }
+
+  .analysis-print-root .print-right-column {
+    display: none !important;
+  }
+}
