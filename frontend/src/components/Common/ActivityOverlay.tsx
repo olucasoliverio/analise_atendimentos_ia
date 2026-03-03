@@ -19,38 +19,39 @@ export const ActivityOverlay = ({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-surface-900/20 backdrop-blur-sm p-6">
-      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/60 bg-white/92 p-8 text-center shadow-2xl shadow-surface-900/10">
+    <div className="pointer-events-none fixed inset-x-0 top-5 z-[120] flex justify-center px-4">
+      <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-surface-200/80 bg-white/95 shadow-xl shadow-surface-900/10 backdrop-blur-sm">
         <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${accentClassName}`} />
 
-        <div className="relative mx-auto mb-6 flex h-24 w-24 items-center justify-center">
-          <div className={`absolute inset-0 rounded-full bg-gradient-to-br opacity-15 ${accentClassName}`} />
-          <div className="absolute inset-2 rounded-full border border-white/80 bg-white/80 shadow-inner" />
-          <div className="absolute inset-0 rounded-full border border-white/70 animate-ping" />
-          <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-900 text-white shadow-lg">
-            <Icon className="h-8 w-8" />
+        <div className="flex items-start gap-4 p-4 pr-5">
+          <div className={`relative mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-sm ${accentClassName}`}>
+            <Icon className="h-5 w-5" />
+            <div className="absolute -right-1 -bottom-1 flex h-5 w-5 items-center justify-center rounded-full border border-white bg-white text-surface-700 shadow-sm">
+              <Loader2 className="h-3 w-3 animate-spin" />
+            </div>
           </div>
-          <div className="absolute -right-1 -bottom-1 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-md">
-            <Loader2 className="h-4 w-4 animate-spin text-surface-700" />
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-surface-900">{title}</h2>
+              <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            </div>
+            <p className="mt-1 text-sm leading-relaxed text-surface-500">{description}</p>
+
+            <div className="mt-3 flex items-center gap-1.5">
+              {[0, 1, 2].map((index) => (
+                <span
+                  key={index}
+                  className="h-1.5 w-1.5 rounded-full bg-surface-300 animate-pulse"
+                  style={{ animationDelay: `${index * 160}ms` }}
+                />
+              ))}
+              <span className="ml-1 text-[11px] font-medium uppercase tracking-[0.18em] text-surface-400">
+                Processando
+              </span>
+            </div>
           </div>
         </div>
-
-        <h2 className="text-2xl font-display font-bold text-surface-900">{title}</h2>
-        <p className="mt-3 text-sm leading-relaxed text-surface-500">{description}</p>
-
-        <div className="mt-6 flex items-center justify-center gap-2">
-          {[0, 1, 2].map((index) => (
-            <span
-              key={index}
-              className="h-2.5 w-2.5 rounded-full bg-surface-300 animate-bounce"
-              style={{ animationDelay: `${index * 120}ms` }}
-            />
-          ))}
-        </div>
-
-        <p className="mt-5 text-xs font-medium uppercase tracking-[0.24em] text-surface-400">
-          Aguarde um instante
-        </p>
       </div>
     </div>
   );
