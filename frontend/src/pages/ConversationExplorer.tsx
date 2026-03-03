@@ -369,7 +369,7 @@ export const ConversationExplorer = () => {
           <button
             onClick={handleAnalyze}
             disabled={analyzing}
-            className="btn bg-[conic-gradient(at_top_right,_var(--tw-gradient-stops))] from-emerald-500 via-teal-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 shadow-soft shadow-emerald-500/30 whitespace-nowrap"
+            className="btn btn-primary whitespace-nowrap"
           >
             {analyzing
               ? <><Loader2 className="w-4 h-4 animate-spin flex-shrink-0" /> Analisando...</>
@@ -571,18 +571,6 @@ export const ConversationExplorer = () => {
                     </div>
                     <span className="group-hover:text-surface-900 transition-colors">Notas privadas</span>
                   </label>
-
-                  <button
-                    onClick={handleAnalyze}
-                    disabled={analyzing}
-                    className="btn btn-primary"
-                  >
-                    {analyzing
-                      ? <Loader2 className="w-4 h-4 animate-spin" />
-                      : <Sparkles className="w-4 h-4" />
-                    }
-                    {analyzing ? 'Analisando...' : 'Analisar com IA'}
-                  </button>
                 </div>
               </div>
 
