@@ -8,6 +8,7 @@ import { FreshchatService } from './freshchat.service';
 
 export class FreshchatCacheService {
   private freshchatService: FreshchatService;
+  private readonly PRISMA_BATCH_SIZE = 3;
   
   // Configurações de TTL (Time To Live)
   private readonly AGENT_CACHE_TTL = 1000 * 60 * 60 * 24 * 7; // 7 dias
@@ -99,8 +100,11 @@ export class FreshchatCacheService {
     console.log(`🌐 Agentes a buscar: ${missingIds.length}`);
 
     if (missingIds.length > 0) {
-      const promises = missingIds.map(id => this.getAgent(id));
-      await Promise.all(promises);
+      await this.runInBatches(
+        missingIds,
+        this.PRISMA_BATCH_SIZE,
+        async (id) => this.getAgent(id)
+      );
       
       const newCached = await prisma.agent.findMany({
         where: { id: { in: missingIds } }
@@ -273,40 +277,41 @@ export class FreshchatCacheService {
 
     const agentsMap = await this.getMultipleAgents(agentIds);
 
-    // ✅ Salvar mensagens com try-catch individual
-    const savePromises = messages.map(async (msg) => {
-      try {
-        const actorName = msg.actorType === 'AGENT' && msg.actorId
-          ? agentsMap.get(msg.actorId) || 'Agente'
-          : msg.actorName;
+    // Limita o número de upserts simultâneos para não esgotar o pool do Prisma.
+    await this.runInBatches(
+      messages,
+      this.PRISMA_BATCH_SIZE,
+      async (msg) => {
+        try {
+          const actorName = msg.actorType === 'AGENT' && msg.actorId
+            ? agentsMap.get(msg.actorId) || 'Agente'
+            : msg.actorName;
 
-        return await prisma.message.upsert({
-          where: { freshchatMessageId: msg.id },
-          update: {
-            actorName,
-            lastFetchedAt: new Date()
-          },
-          create: {
-            conversationId,
-            freshchatMessageId: msg.id,
-            messageType: msg.messageType,
-            actorType: msg.actorType,
-            actorId: msg.actorId,
-            actorName,
-            content: msg.content,
-            hasMedia: msg.hasMedia,
-            mediaUrls: msg.mediaUrls,
-            isImportantNote: msg.isImportantNote,
-            createdAt: new Date(msg.createdAt)
-          }
-        });
-      } catch (error: any) {
-        console.warn(`⚠️ Erro ao salvar mensagem ${msg.id}:`, error.message);
-        return null;
+          await prisma.message.upsert({
+            where: { freshchatMessageId: msg.id },
+            update: {
+              actorName,
+              lastFetchedAt: new Date()
+            },
+            create: {
+              conversationId,
+              freshchatMessageId: msg.id,
+              messageType: msg.messageType,
+              actorType: msg.actorType,
+              actorId: msg.actorId,
+              actorName,
+              content: msg.content,
+              hasMedia: msg.hasMedia,
+              mediaUrls: msg.mediaUrls,
+              isImportantNote: msg.isImportantNote,
+              createdAt: new Date(msg.createdAt)
+            }
+          });
+        } catch (error: any) {
+          console.warn(`⚠️ Erro ao salvar mensagem ${msg.id}:`, error.message);
+        }
       }
-    });
-
-    await Promise.all(savePromises);
+    );
 
     // Atualizar estatísticas da conversa
     await this.updateConversationStats(conversationId, messages);
@@ -406,6 +411,17 @@ export class FreshchatCacheService {
     
     const average = responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length;
     return Math.round(average);
+  }
+
+  private async runInBatches<T>(
+    items: T[],
+    batchSize: number,
+    handler: (item: T) => Promise<unknown>
+  ) {
+    for (let index = 0; index < items.length; index += batchSize) {
+      const batch = items.slice(index, index + batchSize);
+      await Promise.all(batch.map(handler));
+    }
   }
 
   // ==========================================

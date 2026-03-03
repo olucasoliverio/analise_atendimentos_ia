@@ -109,11 +109,16 @@ export const authMiddleware = async (
     console.error('❌ Erro na autenticação:', error.message);
     if (error.name === 'JsonWebTokenError') {
       console.error('   Detalhe: Token inválido ou assinatura não bate.');
+      return next(new AppError('Token inválido', 401));
     } else if (error.name === 'TokenExpiredError') {
       console.error('   Detalhe: Token expirado.');
+      return next(new AppError('Token expirado', 401));
+    } else if (error.name?.startsWith('Prisma')) {
+      console.error('   Detalhe: Falha de conexão ou pool do banco esgotado.');
+      return next(new AppError('Serviço temporariamente indisponível', 503));
     } else {
       console.error('   Tipo do erro:', error.name);
     }
-    next(new AppError('Erro na autenticação: ' + error.message, 401));
+    next(new AppError('Erro interno durante autenticação', 500));
   }
 };

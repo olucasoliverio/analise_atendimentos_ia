@@ -36,6 +36,8 @@ const analysisJobs = new Map<string, AnalysisJob>();
 const JOB_TTL_MS = 1000 * 60 * 60 * 24; // 24h
 
 export class AnalysisController {
+  private readonly CACHE_BATCH_SIZE = 2;
+
   create = catchAsync(async (req: Request & { userId?: string }, res: Response, next: NextFunction) => {
     const { conversationIds: rawConversationIds } = req.body;
     const userId = req.userId!;
@@ -109,6 +111,22 @@ export class AnalysisController {
     }
 
     return Array.from(deduped);
+  }
+
+  private async mapInBatches<T, R>(
+    items: T[],
+    batchSize: number,
+    handler: (item: T) => Promise<R>
+  ): Promise<R[]> {
+    const results: R[] = [];
+
+    for (let index = 0; index < items.length; index += batchSize) {
+      const batch = items.slice(index, index + batchSize);
+      const batchResults = await Promise.all(batch.map(handler));
+      results.push(...batchResults);
+    }
+
+    return results;
   }
 
   private updateJob(jobId: string, updates: Partial<AnalysisJob>) {
@@ -199,10 +217,11 @@ export class AnalysisController {
 
     // ✅ USAR CACHE SERVICE
     onProgress?.(15, 'Buscando conversas (com cache)...');
-    const conversationsPromises = conversationIds.map(id =>
-      cacheService.getConversation(id)
+    const conversations = await this.mapInBatches(
+      conversationIds,
+      this.CACHE_BATCH_SIZE,
+      async (id) => cacheService.getConversation(id)
     );
-    const conversations = await Promise.all(conversationsPromises);
 
     if (conversations.length === 0) {
       throw new AppError('Nenhuma conversa encontrada para os IDs informados', 404);
