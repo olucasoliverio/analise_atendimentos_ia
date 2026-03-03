@@ -14,13 +14,13 @@ export const ActivityOverlay = ({
   title,
   description,
   icon: Icon,
-  accentClassName = 'from-brand-500 via-brand-400 to-brand-600'
+  accentClassName = 'from-violet-500 via-brand-500 to-fuchsia-500'
 }: ActivityOverlayProps) => {
   if (!open) return null;
 
   return (
     <div className="pointer-events-none fixed inset-x-0 top-0 z-[120]">
-      <div className="mx-auto w-full max-w-5xl px-4 pt-4">
+      <div className="mx-auto w-full max-w-5xl px-4 pt-8">
         <div className="overflow-hidden rounded-2xl border border-white/70 bg-white/88 shadow-glass backdrop-blur-md">
           <div className={`h-1.5 w-full bg-gradient-to-r ${accentClassName} opacity-90`} />
 
@@ -38,7 +38,7 @@ export const ActivityOverlay = ({
             </div>
 
             <div className="hidden items-center gap-1.5 sm:flex">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="h-2 w-2 rounded-full bg-violet-500 animate-pulse" />
               <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-surface-400">
                 Em andamento
               </span>
