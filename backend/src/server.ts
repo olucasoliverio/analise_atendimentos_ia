@@ -15,8 +15,18 @@ const PORT = process.env.PORT || 3000;
 
 // Middlewares
 app.use(helmet());
+
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',');
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Permite requisições sem origin (como mobile apps ou curl)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Não permitido por CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(morgan('dev'));
