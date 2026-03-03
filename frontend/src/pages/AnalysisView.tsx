@@ -12,25 +12,17 @@ import {
   ShieldAlert,
   Target,
   Users,
-  Calendar,
   TrendingUp,
   Share2,
   ListOrdered,
   Sparkles,
   FileText,
-  Activity,
   CheckSquare,
   Paperclip,
-  BellRing
 } from 'lucide-react';
 import { analysisService } from '../services/analysis.service';
 import { parseAnalysisText, type ParsedAnalysisText } from '../utils/analysisParser';
-
-interface AnalysisMetadata {
-  tokensUsed?: number;
-  mediaProcessed?: number;
-  processingTimeMs?: number;
-}
+import { ActivityOverlay } from '../components/Common/ActivityOverlay';
 
 interface AnalysisConversationInfo {
   conversationId?: string;
@@ -44,7 +36,6 @@ export const AnalysisView = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [analysis, setAnalysis] = useState<StructuredAnalysis | null>(null);
-  const [metadata, setMetadata] = useState<AnalysisMetadata | null>(null);
   const [conversationInfo, setConversationInfo] = useState<AnalysisConversationInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -61,7 +52,6 @@ export const AnalysisView = () => {
         const data = await analysisService.getById(analysisId);
         const text = data.analysisText || data.fullAnalysisText || '';
 
-        setMetadata(data.metadata || null);
         setConversationInfo({
           conversationId: data.conversationId,
           customerName: data.conversation?.customerName,
@@ -87,8 +77,6 @@ export const AnalysisView = () => {
       if (!scrollContainerRef.current) return;
 
       const sections = ['resumo', 'linha_tempo', 'diagnostico', 'participacao', 'conducao', 'avaliacao', 'risco', 'acoes', 'evidencias'];
-      const scrollPosition = document.documentElement.scrollTop || document.body.scrollTop;
-
       for (const section of sections) {
         const element = document.getElementById(`section-${section}`);
         if (element) {
@@ -149,14 +137,6 @@ export const AnalysisView = () => {
 
   const customerDisplayName = conversationInfo?.customerName || conversationInfo?.customerEmail || 'Cliente';
 
-  const escapeHtml = (value: string): string =>
-    value
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-
   const formatValue = (value: unknown): React.ReactNode => {
     if (value === null || value === undefined || value === '') return <span className="text-surface-400">—</span>;
     if (Array.isArray(value)) {
@@ -188,14 +168,14 @@ export const AnalysisView = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] bg-surface-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16 bg-white rounded-2xl shadow-soft flex items-center justify-center relative overflow-hidden">
-            <Sparkles className="w-8 h-8 text-brand-500 animate-pulse" />
-            <div className="absolute inset-0 bg-gradient-to-tr from-brand-50 to-transparent opacity-50"></div>
-          </div>
-          <p className="text-surface-500 font-medium animate-pulse">Carregando análise...</p>
-        </div>
+      <div className="min-h-[calc(100vh-4rem)] bg-surface-50">
+        <ActivityOverlay
+          open
+          icon={FileText}
+          title="Carregando análise"
+          description="Buscando os dados processados e preparando a visualização detalhada."
+          accentClassName="from-brand-500 via-violet-400 to-indigo-500"
+        />
       </div>
     );
   }
@@ -221,9 +201,7 @@ export const AnalysisView = () => {
   const participacao = analysis.participacao_handoffs || {};
   const anexos = analysis.anexos_analisados;
   const acoesRecomendadas = analysis.acoes_recomendadas;
-  const notasPrivadas = analysis.notas_privadas;
   const avaliacaoScoreTotal = avaliacao.score_total ?? avaliacao.scoreTotal;
-  const avaliacaoClassificacao = avaliacao.classificacao ?? avaliacao.classificacao_geral ?? avaliacao.classificacaoGeral;
 
   const NavItem = ({ id, icon: Icon, label }: { id: string, icon: any, label: string }) => {
     const isActive = activeSection === id;

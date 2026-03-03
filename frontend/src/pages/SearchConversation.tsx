@@ -1,5 +1,5 @@
 // src/pages/SearchConversation.tsx
-import { useState, FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { conversationService } from '../services/conversation.service';
 import { useConversationStore } from '../store/useConversationStore';

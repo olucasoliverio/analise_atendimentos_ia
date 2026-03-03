@@ -4,7 +4,8 @@ import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { useNavigate } from 'react-router-dom';
 import { conversationService } from '../services/conversation.service';
 import { analysisService } from '../services/analysis.service';
-import { Search, Mail, Hash, MessageSquare, User, Clock, Paperclip, FileText, ChevronRight, AlertCircle, Loader2, Sparkles } from 'lucide-react';
+import { Search, Mail, Hash, MessageSquare, User, Clock, Paperclip, AlertCircle, Loader2, Sparkles } from 'lucide-react';
+import { ActivityOverlay } from '../components/Common/ActivityOverlay';
 
 interface Message {
   id: string;
@@ -225,6 +226,22 @@ export const ConversationExplorer = () => {
 
   return (
     <div className="h-screen flex flex-col bg-surface-50 p-6 overflow-hidden">
+      <ActivityOverlay
+        open={loading}
+        icon={Search}
+        title="Buscando conversas"
+        description="Consultando o histórico e organizando os resultados para exibir na tela."
+        accentClassName="from-sky-500 via-cyan-400 to-brand-500"
+      />
+
+      <ActivityOverlay
+        open={analyzing}
+        icon={Sparkles}
+        title="Gerando análise"
+        description="A IA está consolidando as conversas selecionadas e montando a análise detalhada."
+        accentClassName="from-emerald-500 via-teal-400 to-brand-500"
+      />
+
       {/* Search Bar */}
       <div className="card-glass p-3 mb-6 flex flex-wrap items-center gap-4 z-20 shrink-0">
         {/* Mode Toggle */}

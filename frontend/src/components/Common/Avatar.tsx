@@ -1,7 +1,6 @@
 // ==========================================
 // src/components/Common/Avatar.tsx
 // ==========================================
-import { User } from 'lucide-react';
 import { useState } from 'react';
 
 interface AvatarProps {

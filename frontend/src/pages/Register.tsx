@@ -1,6 +1,6 @@
 
 // src/pages/Register.tsx
-import { useState, FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../services/auth.service';
 import { useAuthStore } from '../store/useAuthStore';
