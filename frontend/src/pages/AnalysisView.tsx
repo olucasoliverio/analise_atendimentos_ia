@@ -1,6 +1,5 @@
 ﻿import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import {
   AlertCircle,
@@ -46,7 +45,6 @@ export const AnalysisView = () => {
   // Navigation State
   const [activeSection, setActiveSection] = useState<string>('resumo');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const exportRootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -166,7 +164,19 @@ export const AnalysisView = () => {
   };
 
   const handleExportPdf = async () => {
-    if (!analysis || typeof window === 'undefined' || !exportRootRef.current) return;
+    if (!analysis || typeof window === 'undefined') return;
+
+    type PdfLine = {
+      text: string;
+      indent?: number;
+      bold?: boolean;
+      gapBefore?: number;
+    };
+
+    type PdfSection = {
+      title: string;
+      lines: PdfLine[];
+    };
 
     const exportTitle = [
       'analise',
@@ -177,30 +187,77 @@ export const AnalysisView = () => {
       .join('-')
       .replace(/[^\w.-]+/g, '_');
 
-    const waitForPaint = () =>
-      new Promise<void>((resolve) => {
-        window.requestAnimationFrame(() => {
-          window.requestAnimationFrame(() => resolve());
+    const normalizeText = (value: unknown): string =>
+      String(value ?? '')
+        .replace(/\r/g, '')
+        .replace(/[ \t]+/g, ' ')
+        .trim();
+
+    const paragraphLines = (text: string, indent = 0, prefix = ''): PdfLine[] =>
+      text
+        .split(/\n+/)
+        .map((part) => normalizeText(part))
+        .filter(Boolean)
+        .map((part, index) => ({
+          text: `${index === 0 ? prefix : ''}${part}`,
+          indent,
+          gapBefore: index > 0 ? 1.5 : 0,
+        }));
+
+    const buildPdfLines = (value: unknown, indent = 0): PdfLine[] => {
+      if (value === null || value === undefined || value === '') {
+        return [{ text: 'N/A', indent }];
+      }
+
+      if (typeof value === 'string') {
+        return paragraphLines(value, indent);
+      }
+
+      if (typeof value === 'number' || typeof value === 'boolean') {
+        return [{ text: String(value), indent }];
+      }
+
+      if (Array.isArray(value)) {
+        return value.flatMap((item, index) => {
+          if (item === null || item === undefined || item === '') return [];
+          if (typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean') {
+            return paragraphLines(String(item), indent, '- ');
+          }
+
+          return [
+            { text: `Item ${index + 1}`, indent, bold: true, gapBefore: index > 0 ? 2 : 0 },
+            ...buildPdfLines(item, indent + 1),
+          ];
         });
-      });
+      }
+
+      if (typeof value === 'object') {
+        return Object.entries(value as Record<string, unknown>).flatMap(([key, item], index) => {
+          const label = formatKeyLabel(key);
+          if (item === null || item === undefined || item === '') {
+            return [{ text: `${label}: N/A`, indent, gapBefore: index > 0 ? 1.5 : 0 }];
+          }
+
+          if (typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean') {
+            return paragraphLines(`${label}: ${String(item)}`, indent).map((line, lineIndex) => ({
+              ...line,
+              gapBefore: lineIndex === 0 && index > 0 ? 1.5 : line.gapBefore,
+            }));
+          }
+
+          return [
+            { text: `${label}:`, indent, bold: true, gapBefore: index > 0 ? 1.5 : 0 },
+            ...buildPdfLines(item, indent + 1),
+          ];
+        });
+      }
+
+      return [{ text: String(value), indent }];
+    };
 
     setIsExportingPdf(true);
 
     try {
-      if ('fonts' in document) {
-        await document.fonts.ready;
-      }
-
-      await waitForPaint();
-
-      const sections = Array.from(
-        exportRootRef.current.querySelectorAll<HTMLElement>('[data-pdf-section="true"]')
-      ).filter((section) => section.offsetParent !== null);
-
-      if (sections.length === 0) {
-        throw new Error('Nenhuma seção disponível para exportação.');
-      }
-
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -210,121 +267,186 @@ export const AnalysisView = () => {
 
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 10;
-      const contentWidth = pageWidth - margin * 2;
-      const pageBottom = pageHeight - margin;
-      const sectionGap = 6;
-      let cursorY = margin;
+      const marginX = 14;
+      const topMargin = 16;
+      const bottomMargin = 14;
+      const contentWidth = pageWidth - marginX * 2;
+      const lineHeight = 4.6;
+      const sectionSpacing = 7;
+      const indentWidth = 5;
+      let cursorY = topMargin;
+
+      const ensureSpace = (neededHeight: number) => {
+        if (cursorY + neededHeight <= pageHeight - bottomMargin) return;
+        pdf.addPage();
+        cursorY = topMargin;
+      };
+
+      const writeWrappedLine = (line: PdfLine) => {
+        const indent = (line.indent || 0) * indentWidth;
+        const x = marginX + indent;
+        const maxWidth = contentWidth - indent;
+        const wrapped = pdf.splitTextToSize(line.text, maxWidth) as string[];
+
+        if (line.gapBefore) {
+          cursorY += line.gapBefore;
+        }
+
+        ensureSpace(wrapped.length * lineHeight);
+        pdf.setFont('helvetica', line.bold ? 'bold' : 'normal');
+        pdf.setFontSize(10);
+        pdf.setTextColor(51, 65, 85);
+        pdf.text(wrapped, x, cursorY);
+        cursorY += wrapped.length * lineHeight;
+      };
 
       const drawHeader = () => {
+        const cardHeight = 28;
+        ensureSpace(cardHeight);
         pdf.setDrawColor(226, 232, 240);
-        pdf.setFillColor(255, 255, 255);
-        pdf.roundedRect(margin, cursorY, contentWidth, 24, 3, 3, 'FD');
+        pdf.setFillColor(248, 250, 252);
+        pdf.roundedRect(marginX, cursorY, contentWidth, cardHeight, 3, 3, 'FD');
 
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(18);
         pdf.setTextColor(15, 23, 42);
-        pdf.text(customerDisplayName, margin + 5, cursorY + 8);
+        pdf.text(customerDisplayName, marginX + 4, cursorY + 8);
 
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(9);
         pdf.setTextColor(71, 85, 105);
-        pdf.text(`Email: ${conversationInfo?.customerEmail || 'Sem email'}`, margin + 5, cursorY + 15);
-        pdf.text(`Conversa: ${conversationInfo?.conversationId || 'N/A'}`, margin + 5, cursorY + 20);
+        pdf.text(`Email: ${conversationInfo?.customerEmail || 'Sem email'}`, marginX + 4, cursorY + 15);
+        pdf.text(`Conversa: ${conversationInfo?.conversationId || 'N/A'}`, marginX + 4, cursorY + 20);
+        pdf.text(
+          `Exportado em: ${new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date())}`,
+          marginX + 4,
+          cursorY + 25
+        );
 
-        cursorY += 30;
+        cursorY += cardHeight + 8;
       };
 
-      const addCanvasToPdf = (canvas: HTMLCanvasElement) => {
-        const maxSliceHeightPx = Math.floor((pageBottom - margin) * canvas.width / contentWidth);
-        let renderedHeight = 0;
-        let sourceY = 0;
+      const drawSection = (section: PdfSection) => {
+        ensureSpace(12);
+        pdf.setFillColor(255, 255, 255);
+        pdf.setDrawColor(226, 232, 240);
+        pdf.roundedRect(marginX, cursorY, contentWidth, 10, 2.5, 2.5, 'FD');
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(12);
+        pdf.setTextColor(15, 23, 42);
+        pdf.text(section.title, marginX + 4, cursorY + 6.5);
+        cursorY += 15;
 
-        while (sourceY < canvas.height) {
-          if (cursorY >= pageBottom) {
-            pdf.addPage();
-            cursorY = margin;
-          }
+        section.lines.forEach(writeWrappedLine);
+        cursorY += sectionSpacing;
+      };
 
-          const availableHeightMm = pageBottom - cursorY;
-          const sliceHeightPx = Math.min(
-            canvas.height - sourceY,
-            Math.floor(availableHeightMm * canvas.width / contentWidth),
-            maxSliceHeightPx
-          );
+      const pdfSections: PdfSection[] = [];
 
-          const sliceCanvas = document.createElement('canvas');
-          sliceCanvas.width = canvas.width;
-          sliceCanvas.height = sliceHeightPx;
-
-          const context = sliceCanvas.getContext('2d');
-          if (!context) {
-            throw new Error('Falha ao preparar a exportação do PDF.');
-          }
-
-          context.fillStyle = '#ffffff';
-          context.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-          context.drawImage(
-            canvas,
-            0,
-            sourceY,
-            canvas.width,
-            sliceHeightPx,
-            0,
-            0,
-            canvas.width,
-            sliceHeightPx
-          );
-
-          const sliceHeightMm = (sliceHeightPx * contentWidth) / canvas.width;
-          pdf.addImage(
-            sliceCanvas.toDataURL('image/png'),
-            'PNG',
-            margin,
-            cursorY,
-            contentWidth,
-            sliceHeightMm,
-            undefined,
-            'FAST'
-          );
-
-          renderedHeight += sliceHeightMm;
-          sourceY += sliceHeightPx;
-          cursorY += sliceHeightMm;
-
-          if (sourceY < canvas.height) {
-            pdf.addPage();
-            cursorY = margin;
-          }
+      if (analysis._raw_text) {
+        pdfSections.push({
+          title: 'Texto Original da Analise',
+          lines: buildPdfLines(analysis._raw_text),
+        });
+      } else {
+        if (analysis.resumo_executivo) {
+          pdfSections.push({
+            title: 'Resumo Executivo',
+            lines: buildPdfLines(analysis.resumo_executivo),
+          });
         }
 
-        return renderedHeight;
-      };
+        if (analysis.linha_do_tempo) {
+          pdfSections.push({
+            title: 'Linha do Tempo',
+            lines: buildPdfLines(analysis.linha_do_tempo),
+          });
+        }
+
+        if (Object.keys(problema).length > 0) {
+          pdfSections.push({
+            title: 'Diagnostico do Caso',
+            lines: buildPdfLines(problema),
+          });
+        }
+
+        if (Object.keys(participacao).length > 0) {
+          pdfSections.push({
+            title: 'Participacao e Handoffs',
+            lines: buildPdfLines(participacao),
+          });
+        }
+
+        if (Object.keys(conducao).length > 0) {
+          pdfSections.push({
+            title: 'Conducao do Atendimento',
+            lines: buildPdfLines(conducao),
+          });
+        }
+
+        if (Object.keys(avaliacao).length > 0) {
+          const avaliacaoLines: PdfLine[] = [];
+          if (avaliacaoScoreTotal !== null && avaliacaoScoreTotal !== undefined) {
+            avaliacaoLines.push({ text: `Score Total: ${avaliacaoScoreTotal}/12`, bold: true });
+            avaliacaoLines.push({ text: '', gapBefore: 1 });
+          }
+
+          avaliacaoLines.push(...buildPdfLines(avaliacao));
+          pdfSections.push({
+            title: 'Avaliacao Padronizada (QA)',
+            lines: avaliacaoLines.filter((line) => line.text !== '' || line.gapBefore),
+          });
+        }
+
+        if (Object.keys(risco).length > 0) {
+          pdfSections.push({
+            title: 'Analise de Risco',
+            lines: buildPdfLines(risco),
+          });
+        }
+
+        if (Array.isArray(acoesRecomendadas) && acoesRecomendadas.length > 0) {
+          pdfSections.push({
+            title: 'Planos de Acao Recomendados',
+            lines: buildPdfLines(acoesRecomendadas),
+          });
+        }
+
+        if (Array.isArray(analysis.evidencias_chave) && analysis.evidencias_chave.length > 0) {
+          pdfSections.push({
+            title: 'Evidencias-Chave',
+            lines: buildPdfLines(analysis.evidencias_chave),
+          });
+        }
+
+        if (Array.isArray(anexos) && anexos.length > 0) {
+          pdfSections.push({
+            title: 'Midia Analisada',
+            lines: buildPdfLines(anexos),
+          });
+        }
+      }
+
+      if (pdfSections.length === 0) {
+        throw new Error('Nenhuma seção disponível para exportação.');
+      }
 
       drawHeader();
+      pdfSections.forEach(drawSection);
 
-      for (const section of sections) {
-        const canvas = await html2canvas(section, {
-          backgroundColor: '#ffffff',
-          scale: Math.min(Math.max(window.devicePixelRatio || 1, 2), 3),
-          useCORS: true,
-          logging: false,
-        });
-
-        const estimatedHeightMm = (canvas.height * contentWidth) / canvas.width;
-        if (cursorY > margin && cursorY + Math.min(estimatedHeightMm, pageBottom - margin) > pageBottom) {
-          pdf.addPage();
-          cursorY = margin;
-        }
-
-        const renderedHeight = addCanvasToPdf(canvas);
-        cursorY += renderedHeight > 0 ? sectionGap : 0;
+      const totalPages = pdf.getNumberOfPages();
+      for (let page = 1; page <= totalPages; page += 1) {
+        pdf.setPage(page);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.setTextColor(148, 163, 184);
+        pdf.text(`Pagina ${page} de ${totalPages}`, pageWidth - marginX, pageHeight - 6, { align: 'right' });
       }
 
       pdf.save(`${exportTitle}.pdf`);
     } catch (err) {
       console.error('Erro ao exportar PDF:', err);
-      alert('Não foi possível exportar o PDF desta análise.');
+      alert('Nao foi possivel exportar o PDF desta analise.');
     } finally {
       setIsExportingPdf(false);
     }
@@ -401,10 +523,7 @@ export const AnalysisView = () => {
   };
 
   return (
-    <div
-      ref={exportRootRef}
-      className={`analysis-print-root min-h-screen bg-surface-50 ${isExportingPdf ? 'analysis-export-mode' : ''}`}
-    >
+    <div className={`analysis-print-root min-h-screen bg-surface-50 ${isExportingPdf ? 'analysis-export-mode' : ''}`}>
 
       {/* Top Header */}
       <div className="bg-white border-b border-surface-200 sticky top-0 z-30 shadow-sm print-hidden">
