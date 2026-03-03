@@ -19,6 +19,8 @@
     "axios": "^1.6.7",
     "clsx": "^2.1.0",
     "dompurify": "^3.3.1",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.0",
     "lucide-react": "^0.316.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

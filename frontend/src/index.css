@@ -107,6 +107,27 @@ audio::-webkit-media-controls-panel {
   animation-delay: 250ms;
 }
 
+.analysis-export-mode {
+  background: #f8fafc !important;
+}
+
+.analysis-export-mode .card-glass {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06) !important;
+  backdrop-filter: none !important;
+}
+
+.analysis-export-mode .analysis-main-column {
+  gap: 20px !important;
+}
+
+.analysis-export-mode [data-pdf-section="true"] {
+  overflow: hidden;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
 /* Existing Print Styles Maintained */
 .print-risk-cause-stack {
   display: none;
@@ -211,5 +232,16 @@ audio::-webkit-media-controls-panel {
 
   .analysis-print-root .print-right-column {
     display: none !important;
+  }
+
+  .analysis-print-root [data-pdf-section="true"] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 12px !important;
+  }
+
+  .analysis-print-root [data-pdf-section="true"] > div:first-child {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 }

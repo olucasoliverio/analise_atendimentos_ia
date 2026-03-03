@@ -1,5 +1,7 @@
 ﻿import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import {
   AlertCircle,
   AlertTriangle,
@@ -44,6 +46,7 @@ export const AnalysisView = () => {
   // Navigation State
   const [activeSection, setActiveSection] = useState<string>('resumo');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const exportRootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -162,10 +165,9 @@ export const AnalysisView = () => {
     return <span className="text-surface-800">{String(value)}</span>;
   };
 
-  const handleExportPdf = () => {
-    if (!analysis || typeof window === 'undefined') return;
+  const handleExportPdf = async () => {
+    if (!analysis || typeof window === 'undefined' || !exportRootRef.current) return;
 
-    const previousTitle = document.title;
     const exportTitle = [
       'analise',
       customerDisplayName,
@@ -175,25 +177,153 @@ export const AnalysisView = () => {
       .join('-')
       .replace(/[^\w.-]+/g, '_');
 
+    const waitForPaint = () =>
+      new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => resolve());
+        });
+      });
+
     setIsExportingPdf(true);
-    document.title = exportTitle;
 
-    const finishExport = () => {
-      document.title = previousTitle;
+    try {
+      await waitForPaint();
+
+      const sections = Array.from(
+        exportRootRef.current.querySelectorAll<HTMLElement>('[data-pdf-section="true"]')
+      ).filter((section) => section.offsetParent !== null);
+
+      if (sections.length === 0) {
+        throw new Error('Nenhuma seção disponível para exportação.');
+      }
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+        compress: true,
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const contentWidth = pageWidth - margin * 2;
+      const pageBottom = pageHeight - margin;
+      const sectionGap = 6;
+      let cursorY = margin;
+
+      const drawHeader = () => {
+        pdf.setDrawColor(226, 232, 240);
+        pdf.setFillColor(255, 255, 255);
+        pdf.roundedRect(margin, cursorY, contentWidth, 24, 3, 3, 'FD');
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(18);
+        pdf.setTextColor(15, 23, 42);
+        pdf.text(customerDisplayName, margin + 5, cursorY + 8);
+
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        pdf.setTextColor(71, 85, 105);
+        pdf.text(`Email: ${conversationInfo?.customerEmail || 'Sem email'}`, margin + 5, cursorY + 15);
+        pdf.text(`Conversa: ${conversationInfo?.conversationId || 'N/A'}`, margin + 5, cursorY + 20);
+
+        cursorY += 30;
+      };
+
+      const addCanvasToPdf = (canvas: HTMLCanvasElement) => {
+        const maxSliceHeightPx = Math.floor((pageBottom - margin) * canvas.width / contentWidth);
+        let renderedHeight = 0;
+        let sourceY = 0;
+
+        while (sourceY < canvas.height) {
+          if (cursorY >= pageBottom) {
+            pdf.addPage();
+            cursorY = margin;
+          }
+
+          const availableHeightMm = pageBottom - cursorY;
+          const sliceHeightPx = Math.min(
+            canvas.height - sourceY,
+            Math.floor(availableHeightMm * canvas.width / contentWidth),
+            maxSliceHeightPx
+          );
+
+          const sliceCanvas = document.createElement('canvas');
+          sliceCanvas.width = canvas.width;
+          sliceCanvas.height = sliceHeightPx;
+
+          const context = sliceCanvas.getContext('2d');
+          if (!context) {
+            throw new Error('Falha ao preparar a exportação do PDF.');
+          }
+
+          context.fillStyle = '#ffffff';
+          context.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+          context.drawImage(
+            canvas,
+            0,
+            sourceY,
+            canvas.width,
+            sliceHeightPx,
+            0,
+            0,
+            canvas.width,
+            sliceHeightPx
+          );
+
+          const sliceHeightMm = (sliceHeightPx * contentWidth) / canvas.width;
+          pdf.addImage(
+            sliceCanvas.toDataURL('image/jpeg', 0.92),
+            'JPEG',
+            margin,
+            cursorY,
+            contentWidth,
+            sliceHeightMm,
+            undefined,
+            'FAST'
+          );
+
+          renderedHeight += sliceHeightMm;
+          sourceY += sliceHeightPx;
+          cursorY += sliceHeightMm;
+
+          if (sourceY < canvas.height) {
+            pdf.addPage();
+            cursorY = margin;
+          }
+        }
+
+        return renderedHeight;
+      };
+
+      drawHeader();
+
+      for (const section of sections) {
+        const canvas = await html2canvas(section, {
+          backgroundColor: '#ffffff',
+          scale: Math.min(window.devicePixelRatio || 1, 2),
+          useCORS: true,
+          logging: false,
+        });
+
+        const estimatedHeightMm = (canvas.height * contentWidth) / canvas.width;
+        if (cursorY > margin && cursorY + Math.min(estimatedHeightMm, pageBottom - margin) > pageBottom) {
+          pdf.addPage();
+          cursorY = margin;
+        }
+
+        const renderedHeight = addCanvasToPdf(canvas);
+        cursorY += renderedHeight > 0 ? sectionGap : 0;
+      }
+
+      pdf.save(`${exportTitle}.pdf`);
+    } catch (err) {
+      console.error('Erro ao exportar PDF:', err);
+      alert('Não foi possível exportar o PDF desta análise.');
+    } finally {
       setIsExportingPdf(false);
-      window.removeEventListener('afterprint', finishExport);
-    };
-
-    window.addEventListener('afterprint', finishExport, { once: true });
-
-    window.setTimeout(() => {
-      window.print();
-
-      // Browsers that do not reliably fire `afterprint` still need the UI restored.
-      window.setTimeout(() => {
-        finishExport();
-      }, 1000);
-    }, 100);
+    }
   };
 
   if (loading) {
@@ -267,7 +397,10 @@ export const AnalysisView = () => {
   };
 
   return (
-    <div className="analysis-print-root min-h-screen bg-surface-50">
+    <div
+      ref={exportRootRef}
+      className={`analysis-print-root min-h-screen bg-surface-50 ${isExportingPdf ? 'analysis-export-mode' : ''}`}
+    >
 
       {/* Top Header */}
       <div className="bg-white border-b border-surface-200 sticky top-0 z-30 shadow-sm print-hidden">
@@ -302,7 +435,7 @@ export const AnalysisView = () => {
               disabled={isExportingPdf}
             >
               <Download className="w-4 h-4 mr-2" />
-              {isExportingPdf ? 'Preparando PDF...' : 'Exportar PDF'}
+              {isExportingPdf ? 'Gerando PDF...' : 'Exportar PDF'}
             </button>
           </div>
         </div>
@@ -315,7 +448,7 @@ export const AnalysisView = () => {
 
           <div className="card-glass p-2">
             <div className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-surface-400">Navegação</div>
-            <div className="space-y-1"> 
+            <div className="space-y-1">
               <NavItem id="resumo" icon={FileText} label="Resumo Executivo" />
               <NavItem id="linha_tempo" icon={Clock} label="Linha do Tempo" />
               <NavItem id="diagnostico" icon={Target} label="Diagnóstico" />
@@ -342,7 +475,7 @@ export const AnalysisView = () => {
 
           {/* If Raw Text Fallback */}
           {analysis._raw_text && (
-            <div className="card-glass p-8 mb-8">
+            <div className="card-glass p-8 mb-8" data-pdf-section="true">
               <h2 className="text-xl font-display font-bold text-surface-900 mb-4 flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-amber-500" />
                 Texto Original da Análise
@@ -359,7 +492,7 @@ export const AnalysisView = () => {
 
               {/* Resumo Executivo */}
               {analysis.resumo_executivo && (
-                <div id="section-resumo" className="card-glass overflow-hidden relative group">
+                <div id="section-resumo" className="card-glass overflow-hidden relative group" data-pdf-section="true">
                   <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-500"></div>
                   <div className="p-8">
                     <h2 className="text-xl font-display font-bold text-surface-900 mb-4 flex items-center gap-2">
@@ -375,7 +508,7 @@ export const AnalysisView = () => {
 
               {/* Linha do Tempo */}
               {analysis.linha_do_tempo && (
-                <div id="section-linha_tempo" className="card-glass p-8 scroll-mt-28">
+                <div id="section-linha_tempo" className="card-glass p-8 scroll-mt-28" data-pdf-section="true">
                   <h2 className="text-xl font-display font-bold text-surface-900 mb-6 flex items-center gap-2">
                     <Clock className="w-6 h-6 text-indigo-500" />
                     Linha do Tempo
@@ -393,7 +526,7 @@ export const AnalysisView = () => {
 
               {/* Diagnóstico */}
               {problema && Object.keys(problema).length > 0 && (
-                <div id="section-diagnostico" className="card-glass p-8 scroll-mt-28">
+                <div id="section-diagnostico" className="card-glass p-8 scroll-mt-28" data-pdf-section="true">
                   <h2 className="text-xl font-display font-bold text-surface-900 mb-6 flex items-center gap-2">
                     <Target className="w-6 h-6 text-rose-500" />
                     Diagnóstico do Caso
@@ -411,7 +544,7 @@ export const AnalysisView = () => {
 
               {/* Participação */}
               {analysis.participacao_handoffs && (
-                <div id="section-participacao" className="card-glass p-8 scroll-mt-28">
+                <div id="section-participacao" className="card-glass p-8 scroll-mt-28" data-pdf-section="true">
                   <h2 className="text-xl font-display font-bold text-surface-900 mb-6 flex items-center gap-2">
                     <Users className="w-6 h-6 text-sky-500" />
                     Participação e Handoffs
@@ -429,7 +562,7 @@ export const AnalysisView = () => {
 
               {/* Condução */}
               {conducao && Object.keys(conducao).length > 0 && (
-                <div id="section-conducao" className="card-glass p-8 scroll-mt-28">
+                <div id="section-conducao" className="card-glass p-8 scroll-mt-28" data-pdf-section="true">
                   <h2 className="text-xl font-display font-bold text-surface-900 mb-6 flex items-center gap-2">
                     <TrendingUp className="w-6 h-6 text-teal-500" />
                     Condução do Atendimento
@@ -449,7 +582,7 @@ export const AnalysisView = () => {
 
               {/* Avaliação Padronizada */}
               {avaliacao && Object.keys(avaliacao).length > 0 && (
-                <div id="section-avaliacao" className="card-glass p-8 scroll-mt-28 relative overflow-hidden">
+                <div id="section-avaliacao" className="card-glass p-8 scroll-mt-28 relative overflow-hidden" data-pdf-section="true">
                   <h2 className="text-xl font-display font-bold text-surface-900 mb-6 flex items-center gap-2">
                     <CheckSquare className="w-6 h-6 text-violet-500" />
                     Avaliação Padronizada (QA)
@@ -496,7 +629,7 @@ export const AnalysisView = () => {
 
               {/* Análise de Risco */}
               {risco && Object.keys(risco).length > 0 && (
-                <div id="section-risco" className="card-glass p-8 scroll-mt-28">
+                <div id="section-risco" className="card-glass p-8 scroll-mt-28" data-pdf-section="true">
                   <h2 className="text-xl font-display font-bold text-surface-900 mb-6 flex items-center gap-2">
                     <ShieldAlert className="w-6 h-6 text-red-500" />
                     Análise de Risco
@@ -542,7 +675,7 @@ export const AnalysisView = () => {
 
               {/* Ações Recomendadas */}
               {acoesRecomendadas && Array.isArray(acoesRecomendadas) && acoesRecomendadas.length > 0 && (
-                <div id="section-acoes" className="card-glass p-8 scroll-mt-28">
+                <div id="section-acoes" className="card-glass p-8 scroll-mt-28" data-pdf-section="true">
                   <h2 className="text-xl font-display font-bold text-surface-900 mb-6 flex items-center gap-2">
                     <ListOrdered className="w-6 h-6 text-emerald-500" />
                     Planos de Ação Recomendados
@@ -597,7 +730,7 @@ export const AnalysisView = () => {
 
               {/* Evidências */}
               {analysis.evidencias_chave && Array.isArray(analysis.evidencias_chave) && analysis.evidencias_chave.length > 0 && (
-                <div id="section-evidencias" className="card-glass p-8 scroll-mt-28">
+                <div id="section-evidencias" className="card-glass p-8 scroll-mt-28" data-pdf-section="true">
                   <h2 className="text-xl font-display font-bold text-surface-900 mb-6 flex items-center gap-2">
                     <Paperclip className="w-6 h-6 text-surface-400" />
                     Evidências-Chave & Anexos
