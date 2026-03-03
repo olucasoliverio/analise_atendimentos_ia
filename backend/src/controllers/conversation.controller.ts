@@ -21,9 +21,10 @@ export class ConversationController {
 
   getMultiple = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
     const { ids } = req.body;
-    console.log('📥 getMultiple called with ids:', ids);
+    console.log('📥 [Controller] getMultiple chamado com IDs:', JSON.stringify(ids));
 
     if (!Array.isArray(ids) || ids.length === 0) {
+      console.warn('⚠️ [Controller] Nenhum ID fornecido no corpo da requisição');
       return res.status(400).json({
         message: 'Forneça um array de IDs de conversas'
       });
@@ -32,9 +33,10 @@ export class ConversationController {
     // Aceita IDs numéricos ou UUIDs
     const conversations = await freshchatService.getMultipleConversationsByAnyId(ids);
 
-    console.log('✅ Conversations fetched:', conversations.length);
+    console.log(`✅ [Controller] ${conversations.length} conversas encontradas na API`);
 
     if (conversations.length === 0) {
+      console.log('❌ [Controller] Nenhuma conversa encontrada para os IDs:', ids);
       return res.status(404).json({
         message: 'Nenhuma conversa encontrada para os IDs fornecidos',
         idsSearched: ids

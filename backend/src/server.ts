@@ -1,14 +1,14 @@
+import 'dotenv/config';
 import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
+
 import cron from 'node-cron';
 import { errorHandler } from './middleware/errorHandler';
 import routes from './routes';
 import { FreshchatCacheService } from './services/freshchat-cache.service';
 
-dotenv.config();
 
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
@@ -25,8 +25,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     service: 'Next Fit AI Analyst API'
   });

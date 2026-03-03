@@ -1,4 +1,6 @@
+import 'dotenv/config';
 import axios, { AxiosInstance } from 'axios';
+
 import { ConversationDetailDTO, MessageDTO } from '../models/dtos/conversation.dto';
 
 type MessagePaginationMode = 'page_items_per_page' | 'page_per_page' | 'items_per_page' | 'none';
@@ -12,16 +14,24 @@ export class FreshchatService {
   private cacheCleanerInterval?: NodeJS.Timeout;
 
   constructor() {
+    const baseURL = process.env.FRESHCHAT_API_URL;
+    const token = process.env.FRESHCHAT_API_TOKEN;
+
+    if (!baseURL || !token) {
+      console.error('❌ ERRO: FRESHCHAT_API_URL ou FRESHCHAT_API_TOKEN não configurados no .env');
+    }
+
     this.api = axios.create({
-      baseURL: process.env.FRESHCHAT_API_URL,
+      baseURL,
       headers: {
-        'Authorization': `Bearer ${process.env.FRESHCHAT_API_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      httpsAgent: process.env.NODE_ENV === 'development' ? 
+      httpsAgent: process.env.NODE_ENV === 'development' ?
         new (require('https').Agent)({ rejectUnauthorized: false }) : undefined
     });
-    
+
+    console.log(`📡 Freshchat Service inicializado (BaseURL: ${baseURL || 'MISSING'})`);
     this.startCacheCleaner();
   }
 
@@ -32,7 +42,7 @@ export class FreshchatService {
       // Buscar nome do agente atribuído se houver
       let assignedAgentName = '';
       const assignedAgentId = data.assigned_agent_id || null;
-      
+
       if (assignedAgentId) {
         const agent = await this.getAgent(assignedAgentId);
         if (agent) {
@@ -86,7 +96,7 @@ export class FreshchatService {
       return null;
     }
   }
-  
+
   async getMessages(conversationId: string): Promise<MessageDTO[]> {
     try {
       let allMessages: MessageDTO[] = [];
@@ -143,8 +153,8 @@ export class FreshchatService {
     } catch (error: any) {
       throw new Error(`Erro ao buscar mensagens: ${error.message}`);
     }
-  }  
-  
+  }
+
 
   /**
    * Converte ID numérico (da URL) para UUID (da API)
@@ -160,10 +170,14 @@ export class FreshchatService {
 
       const uuid = data.conversation_id || data.id;
       console.log(`✅ UUID encontrado: ${uuid}`);
-      
+
       return uuid;
     } catch (error: any) {
-      console.error(`❌ Erro ao converter ID ${numericId}:`, error.message);
+      if (error.response) {
+        console.error(`❌ Erro Freshchat (Status ${error.response.status}) ao converter ID ${numericId}:`, error.response.data);
+      } else {
+        console.error(`❌ Erro ao converter ID ${numericId}:`, error.message);
+      }
       return null;
     }
   }
@@ -181,7 +195,7 @@ export class FreshchatService {
     } else {
       // É ID numérico, converter primeiro
       const uuid = await this.getConversationUUID(id);
-      
+
       if (!uuid) {
         throw new Error(`Conversa ${id} não encontrada`);
       }
@@ -263,7 +277,7 @@ export class FreshchatService {
 
   async getMultipleConversations(conversationIds: string[]) {
     console.log(`📊 Buscando ${conversationIds.length} conversas em paralelo...`);
-    
+
     // ✅ PARALELO - Todas ao mesmo tempo
     const promises = conversationIds.map(async (id) => {
       try {
@@ -308,7 +322,7 @@ export class FreshchatService {
     });
 
     const results = await Promise.all(promises);
-    
+
     const agentsMap = new Map();
     results.forEach(({ id, agent }) => {
       if (agent) {
@@ -328,7 +342,7 @@ export class FreshchatService {
       // ✅ Verificar cache com TTL
       const now = Date.now();
       const expiry = this.agentsCacheExpiry.get(agentId);
-      
+
       if (this.agentsCache.has(agentId) && expiry && expiry > now) {
         console.log(`💾 Cache hit: agente ${agentId}`);
         return this.agentsCache.get(agentId)!;
@@ -376,7 +390,7 @@ export class FreshchatService {
         : msg.actorName
     }));
   }
-  
+
   async getConversationComplete(conversationId: string) {
     console.log(`📋 Buscando conversa completa: ${conversationId}`);
 
@@ -427,7 +441,7 @@ export class FreshchatService {
 
       const userIds = users.map((user: any) => user.id).filter(Boolean);
       console.log(`✅ ${userIds.length} usuário(s) encontrado(s):`, userIds);
-      
+
       return userIds;
     } catch (error: any) {
       console.error('❌ Erro ao buscar usuários:', error.message);
@@ -439,7 +453,7 @@ export class FreshchatService {
     }
   }
 
-    async getConversationsByUserId(userId: string): Promise<string[]> {
+  async getConversationsByUserId(userId: string): Promise<string[]> {
     try {
       console.log('🔍 Buscando conversas do usuário:', userId);
 
@@ -452,7 +466,7 @@ export class FreshchatService {
       console.log('📥 Resposta de conversas:', JSON.stringify(data, null, 2));
 
       const conversations = data.conversations || [];
-      
+
       // A API retorna { "id": "xxx" } para cada conversa
       const ids = conversations
         .map((conv: any) => conv.id || conv.conversation_id)
@@ -460,7 +474,7 @@ export class FreshchatService {
 
       console.log(`✅ ${ids.length} conversas encontradas`);
       console.log('IDs:', ids);
-      
+
       return ids;
     } catch (error: any) {
       console.error('❌ Erro ao buscar conversas:', error.message);
@@ -521,7 +535,7 @@ export class FreshchatService {
   private hasMedia(message: any): boolean {
     if (!message.message_parts) return false;
 
-    return message.message_parts.some((part: any) => 
+    return message.message_parts.some((part: any) =>
       part.image || part.file || part.video || part.audio
     );
   }
@@ -558,7 +572,7 @@ export class FreshchatService {
     if (message.message_type !== 'private') return false;
 
     const content = this.extractContent(message).toUpperCase();
-    
+
     const importantMarkers = [
       '@SOLICITAÇÃO DE APOIO N2',
       '@SOLICITACAO DE APOIO N2',
@@ -595,8 +609,8 @@ export class FreshchatService {
       default: return 'SYSTEM';
     }
   }
-  
-    private startCacheCleaner() {
+
+  private startCacheCleaner() {
     this.cacheCleanerInterval = setInterval(() => {
       const now = Date.now();
       let cleaned = 0;

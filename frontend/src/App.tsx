@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Sidebar } from './components/Layout/Sidebar';
 import { PrivateRoute } from './components/Common/PrivateRoute';
 import { Login } from './pages/Login';
-import { Register } from './pages/Register';
+import { AuthCallback } from './pages/AuthCallback';
 import { ConversationExplorer } from './pages/ConversationExplorer';
 import { AnalysisView } from './pages/AnalysisView';
 import { AnalysisList } from './pages/AnalysisList';
@@ -49,7 +49,7 @@ function App() {
         <main className="flex-1 w-full pl-0 md:pl-64 transition-all duration-300 relative">
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
 
             <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
             <Route path="/search" element={<PrivateRoute><ConversationExplorer /></PrivateRoute>} />

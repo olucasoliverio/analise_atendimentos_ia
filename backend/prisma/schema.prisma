@@ -197,15 +197,17 @@ model AnalysisHistory {
 // ==========================================
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  supabaseId  String?  @unique
+  email       String   @unique
+  name        String?
+  password    String?  // Opcional para usuários OAuth (Google)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   history AnalysisHistory[]
 
-  @@index([email, createdAt])
+  @@index([email])
+  @@index([supabaseId])
   @@map("users")
 }
