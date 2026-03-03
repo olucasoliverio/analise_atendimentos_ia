@@ -60,7 +60,11 @@ function App() {
           </button>
         ) : null}
 
-        <main className="flex-1 w-full pl-0 lg:pl-64 transition-all duration-300 relative">
+        <main
+          className={`flex-1 w-full transition-all duration-300 relative ${
+            isAuthenticated ? 'pl-0 lg:pl-64' : 'pl-0'
+          }`}
+        >
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
