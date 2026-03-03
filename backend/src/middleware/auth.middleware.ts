@@ -1,4 +1,6 @@
+import 'dotenv/config';
 import { Request, Response, NextFunction } from 'express';
+
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 import { prisma } from '../config/database';
@@ -104,7 +106,14 @@ export const authMiddleware = async (
     req.userId = user.id;
     next();
   } catch (error: any) {
-    console.error('Erro na autenticação:', error.message);
+    console.error('❌ Erro na autenticação:', error.message);
+    if (error.name === 'JsonWebTokenError') {
+      console.error('   Detalhe: Token inválido ou assinatura não bate.');
+    } else if (error.name === 'TokenExpiredError') {
+      console.error('   Detalhe: Token expirado.');
+    } else {
+      console.error('   Tipo do erro:', error.name);
+    }
     next(new AppError('Erro na autenticação: ' + error.message, 401));
   }
 };
