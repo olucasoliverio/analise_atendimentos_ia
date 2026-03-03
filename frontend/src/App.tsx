@@ -1,6 +1,7 @@
 // src/App.tsx
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Menu } from 'lucide-react';
 import { Sidebar } from './components/Layout/Sidebar';
 import { PrivateRoute } from './components/Common/PrivateRoute';
 import { Login } from './pages/Login';
@@ -36,6 +37,8 @@ const Dashboard = () => (
 
 function App() {
   const init = useAuthStore((state) => state.init);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     init();
@@ -44,9 +47,20 @@ function App() {
   return (
     <BrowserRouter>
       <div className="flex min-h-screen bg-surface-50">
-        <Sidebar />
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-        <main className="flex-1 w-full pl-0 md:pl-64 transition-all duration-300 relative">
+        {isAuthenticated && !isSidebarOpen ? (
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(true)}
+            className="lg:hidden fixed top-4 left-4 z-[60] inline-flex items-center justify-center w-11 h-11 rounded-xl border border-surface-200 bg-white text-surface-700 shadow-sm"
+            aria-label="Abrir menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        ) : null}
+
+        <main className="flex-1 w-full pl-0 lg:pl-64 transition-all duration-300 relative">
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
