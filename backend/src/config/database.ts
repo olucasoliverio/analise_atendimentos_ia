@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 
-// Singleton para evitar múltiplas instâncias no Render
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
 export const prisma =
