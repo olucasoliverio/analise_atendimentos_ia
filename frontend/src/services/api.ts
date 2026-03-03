@@ -2,8 +2,14 @@
 import axios from 'axios';
 import { supabase } from '../lib/supabase';
 
+const baseURL = import.meta.env.VITE_API_URL;
+
+if (!baseURL) {
+  console.error('⚠️ CRITICAL: VITE_API_URL is NOT defined! The app will try to call the same domain which might fail.');
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  baseURL: baseURL || '/api',
   headers: {
     'Content-Type': 'application/json',
   },
