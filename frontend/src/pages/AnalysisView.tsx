@@ -39,6 +39,7 @@ export const AnalysisView = () => {
   const [conversationInfo, setConversationInfo] = useState<AnalysisConversationInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   // Navigation State
   const [activeSection, setActiveSection] = useState<string>('resumo');
@@ -162,8 +163,37 @@ export const AnalysisView = () => {
   };
 
   const handleExportPdf = () => {
-    if (!analysis) return;
-    alert("Export PDF Function is currently under refactoring.");
+    if (!analysis || typeof window === 'undefined') return;
+
+    const previousTitle = document.title;
+    const exportTitle = [
+      'analise',
+      customerDisplayName,
+      conversationInfo?.conversationId
+    ]
+      .filter(Boolean)
+      .join('-')
+      .replace(/[^\w.-]+/g, '_');
+
+    setIsExportingPdf(true);
+    document.title = exportTitle;
+
+    const finishExport = () => {
+      document.title = previousTitle;
+      setIsExportingPdf(false);
+      window.removeEventListener('afterprint', finishExport);
+    };
+
+    window.addEventListener('afterprint', finishExport, { once: true });
+
+    window.setTimeout(() => {
+      window.print();
+
+      // Browsers that do not reliably fire `afterprint` still need the UI restored.
+      window.setTimeout(() => {
+        finishExport();
+      }, 1000);
+    }, 100);
   };
 
   if (loading) {
@@ -237,10 +267,10 @@ export const AnalysisView = () => {
   };
 
   return (
-    <div className="min-h-screen bg-surface-50">
+    <div className="analysis-print-root min-h-screen bg-surface-50">
 
       {/* Top Header */}
-      <div className="bg-white border-b border-surface-200 sticky top-0 z-30 shadow-sm">
+      <div className="bg-white border-b border-surface-200 sticky top-0 z-30 shadow-sm print-hidden">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <button
@@ -262,16 +292,17 @@ export const AnalysisView = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="btn btn-secondary bg-white text-surface-700 shadow-sm">
+            <button className="btn btn-secondary bg-white text-surface-700 shadow-sm print-hidden">
               <Share2 className="w-4 h-4 mr-2" />
               Compartilhar
             </button>
             <button
               onClick={handleExportPdf}
               className="btn btn-primary"
+              disabled={isExportingPdf}
             >
               <Download className="w-4 h-4 mr-2" />
-              Exportar PDF
+              {isExportingPdf ? 'Preparando PDF...' : 'Exportar PDF'}
             </button>
           </div>
         </div>
@@ -280,7 +311,7 @@ export const AnalysisView = () => {
       <div className="max-w-[90rem] mx-auto px-6 py-8 flex items-start gap-8 lg:flex-row-reverse">
 
         {/* Left Navigation Sidebar - Scroll Spy */}
-        <div className="w-64 shrink-0 sticky top-28 hidden lg:block">
+        <div className="w-64 shrink-0 sticky top-28 hidden lg:block print-right-column">
 
           <div className="card-glass p-2">
             <div className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-surface-400">Navegação</div>
@@ -299,7 +330,15 @@ export const AnalysisView = () => {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 min-w-0" ref={scrollContainerRef}>
+        <div className="flex-1 min-w-0 analysis-main-column" ref={scrollContainerRef}>
+
+          <div className="hidden print:block bg-white border border-surface-200 rounded-2xl p-6 mb-8">
+            <h1 className="text-2xl font-display font-bold text-surface-900">{customerDisplayName}</h1>
+            <div className="mt-3 space-y-1 text-sm text-surface-600">
+              <p>Email: {conversationInfo?.customerEmail || 'Sem email'}</p>
+              <p>Conversa: {conversationInfo?.conversationId || 'N/A'}</p>
+            </div>
+          </div>
 
           {/* If Raw Text Fallback */}
           {analysis._raw_text && (
