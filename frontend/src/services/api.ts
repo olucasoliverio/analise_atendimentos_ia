@@ -2,10 +2,18 @@
 import axios from 'axios';
 import { supabase } from '../lib/supabase';
 
-const baseURL = import.meta.env.VITE_API_URL;
+let baseURL = import.meta.env.VITE_API_URL;
 
-if (!baseURL) {
-  console.error('⚠️ CRITICAL: VITE_API_URL is NOT defined! The app will try to call the same domain which might fail.');
+// Log para debug no console do navegador do usuário
+if (baseURL) {
+  console.log('📡 Usando API em:', baseURL);
+} else {
+  console.error('⚠️ CRITICAL: VITE_API_URL não definida no Vercel!');
+}
+
+// Garante que o baseURL termine em /api se não for relativo
+if (baseURL && !baseURL.endsWith('/api')) {
+  baseURL = baseURL.endsWith('/') ? `${baseURL}api` : `${baseURL}/api`;
 }
 
 const api = axios.create({
