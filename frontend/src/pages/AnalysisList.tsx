@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { analysisService } from '../services/analysis.service';
-import { Loading } from '../components/Common/Loading';
 import { Trash2, Eye, Hash, Mail, Sparkles, Filter, MoreVertical, Search as SearchIcon, Calendar } from 'lucide-react';
+import { Loading } from '../components/Common/Loading';
+import { analysisService } from '../services/analysis.service';
+import { parseAnalysisText } from '../utils/analysisParser';
 
 type RiskLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 
@@ -35,7 +36,7 @@ const extractRiskFromText = (text: string): RiskLevel | null => {
 };
 
 const getDisplayRiskLevel = (analysis: any): RiskLevel => {
-  const candidateText = `${analysis.preview || ''}\n${analysis.executiveSummary || ''}`;
+  const candidateText = `${analysis.executiveSummary || ''}\n${analysis.preview || ''}`;
   const parsed = extractRiskFromText(candidateText);
 
   if (parsed) return parsed;
@@ -44,6 +45,21 @@ const getDisplayRiskLevel = (analysis: any): RiskLevel => {
   }
 
   return 'LOW';
+};
+
+const getAnalysisPreview = (analysis: any) => {
+  const candidates = [analysis.executiveSummary, analysis.preview].filter(
+    (candidate): candidate is string => typeof candidate === 'string' && candidate.trim().length > 0
+  );
+
+  for (const candidate of candidates) {
+    const parsed = parseAnalysisText(candidate);
+    if (parsed.resumo_executivo && !parsed._raw_text) {
+      return parsed.resumo_executivo;
+    }
+  }
+
+  return analysis.executiveSummary || analysis.preview || 'Nenhum preview de texto disponível para esta análise de atendimento.';
 };
 
 const getRiskBadgeClass = (riskLevel: RiskLevel) => {
@@ -59,13 +75,6 @@ const getRiskBadgeLabel = (riskLevel: RiskLevel) => {
   if (riskLevel === 'MEDIUM') return 'Médio';
   return 'Baixo';
 };
-
-const getRiskIconColor = (riskLevel: RiskLevel) => {
-  if (riskLevel === 'CRITICAL') return 'text-red-500';
-  if (riskLevel === 'HIGH') return 'text-orange-500';
-  if (riskLevel === 'MEDIUM') return 'text-yellow-500';
-  return 'text-emerald-500';
-}
 
 export const AnalysisList = () => {
   const [analyses, setAnalyses] = useState<any[]>([]);
@@ -101,7 +110,7 @@ export const AnalysisList = () => {
     setDeleting(id);
     try {
       await analysisService.delete(id);
-      setAnalyses((prev) => prev.filter((a) => a.id !== id));
+      setAnalyses((prev) => prev.filter((analysis) => analysis.id !== id));
     } catch (err: any) {
       alert(err.response?.data?.message || 'Erro ao deletar análise');
     } finally {
@@ -112,65 +121,58 @@ export const AnalysisList = () => {
   if (loading) return <Loading />;
 
   return (
-    <div className="absolute inset-0 bg-surface-50 overflow-y-auto">
-      <div className="max-w-6xl mx-auto py-10 px-6 sm:px-8">
-
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 animate-fade-in">
+    <div className="absolute inset-0 overflow-y-auto bg-surface-50">
+      <div className="mx-auto max-w-6xl px-6 py-10 sm:px-8">
+        <div className="mb-8 flex flex-col justify-between gap-6 animate-fade-in md:flex-row md:items-end">
           <div className="flex-1">
-            <h1 className="text-3xl font-display font-bold text-surface-900 flex items-center gap-3">
-              <Sparkles className="w-8 h-8 text-brand-500" />
+            <h1 className="flex items-center gap-3 text-3xl font-display font-bold text-surface-900">
+              <Sparkles className="h-8 w-8 text-brand-500" />
               Histórico de Análises
             </h1>
-            <p className="text-surface-500 mt-2 text-sm max-w-xl">
+            <p className="mt-2 max-w-xl text-sm text-surface-500">
               Acompanhe todas as análises de atendimento feitas pela IA. Filtre e busque por risco, cliente ou data para encontrar insights rapidamente.
             </p>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="card-glass border border-surface-200 px-4 py-2.5 flex items-center gap-2 text-sm font-medium text-surface-600 shadow-sm">
-              <span className="w-2.5 h-2.5 rounded-full bg-brand-500 animate-pulse-slow"></span>
+          <div className="flex shrink-0 items-center gap-3">
+            <div className="card-glass flex items-center gap-2 border border-surface-200 px-4 py-2.5 text-sm font-medium text-surface-600 shadow-sm">
+              <span className="h-2.5 w-2.5 animate-pulse-slow rounded-full bg-brand-500"></span>
               {analyses.length} análise{analyses.length !== 1 && 's'} gerada{analyses.length !== 1 && 's'}
             </div>
-            <button
-              onClick={() => navigate('/search')}
-              className="btn btn-primary"
-            >
+            <button onClick={() => navigate('/search')} className="btn btn-primary">
               + Nova Análise
             </button>
           </div>
         </div>
 
-        {/* Toolbar & Filters (Visual Only) */}
-        <div className="mb-8 flex flex-col sm:flex-row items-center gap-4 animate-slide-up" style={{ animationDelay: '100ms' }}>
-          <div className="relative flex-1 w-full">
-            <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+        <div className="mb-8 flex flex-col items-center gap-4 animate-slide-up sm:flex-row" style={{ animationDelay: '100ms' }}>
+          <div className="relative w-full flex-1">
+            <SearchIcon className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-400" />
             <input
               type="text"
               placeholder="Buscar por cliente, email ou ID da conversa..."
-              className="input pl-10 h-11 bg-white shadow-sm"
+              className="input h-11 bg-white pl-10 shadow-sm"
               disabled
             />
           </div>
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <button className="btn btn-secondary h-11 px-4 text-surface-500 hover:text-surface-700 bg-white shadow-sm">
-              <Filter className="w-4 h-4 mr-2" />
+          <div className="flex w-full items-center gap-3 sm:w-auto">
+            <button className="btn btn-secondary h-11 bg-white px-4 text-surface-500 shadow-sm hover:text-surface-700">
+              <Filter className="mr-2 h-4 w-4" />
               Filtros
             </button>
-            <button className="btn btn-secondary h-11 px-4 text-surface-500 hover:text-surface-700 bg-white shadow-sm">
-              <Calendar className="w-4 h-4 mr-2" />
+            <button className="btn btn-secondary h-11 bg-white px-4 text-surface-500 shadow-sm hover:text-surface-700">
+              <Calendar className="mr-2 h-4 w-4" />
               Período
             </button>
           </div>
         </div>
 
-        {/* Content Area */}
         {analyses.length === 0 ? (
-          <div className="card-glass flex flex-col items-center justify-center py-20 px-4 text-center animate-slide-up" style={{ animationDelay: '200ms' }}>
-            <div className="w-20 h-20 bg-brand-50 rounded-full flex items-center justify-center mb-6 shadow-soft">
-              <Sparkles className="w-10 h-10 text-brand-400" />
+          <div className="card-glass flex flex-col items-center justify-center px-4 py-20 text-center animate-slide-up" style={{ animationDelay: '200ms' }}>
+            <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-brand-50 shadow-soft">
+              <Sparkles className="h-10 w-10 text-brand-400" />
             </div>
-            <h3 className="text-xl font-display font-medium text-surface-900 mb-2">Nenhuma análise disponível</h3>
-            <p className="text-surface-500 max-w-sm mb-6">
+            <h3 className="mb-2 text-xl font-display font-medium text-surface-900">Nenhuma análise disponível</h3>
+            <p className="mb-6 max-w-sm text-surface-500">
               Você ainda não realizou nenhuma análise com IA. Inicie uma nova busca para gerar a primeira.
             </p>
             <button
@@ -181,7 +183,7 @@ export const AnalysisList = () => {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {analyses.map((analysis, index) => {
               const displayRiskLevel = getDisplayRiskLevel(analysis);
               const delay = Math.min((index + 2) * 100, 800);
@@ -190,64 +192,61 @@ export const AnalysisList = () => {
                 <div
                   key={analysis.id}
                   onClick={() => navigate(`/analysis/${analysis.id}`)}
-                  className="card-glass-hover bg-white flex flex-col h-full animate-slide-up cursor-pointer group isolation-auto"
+                  className="card-glass-hover group isolation-auto flex h-full cursor-pointer flex-col bg-white animate-slide-up"
                   style={{ animationDelay: `${delay}ms` }}
                 >
-                  {/* Card Header */}
-                  <div className="p-5 border-b border-surface-100 flex items-start justify-between relative">
+                  <div className="relative flex items-start justify-between border-b border-surface-100 p-5">
                     <div className="flex items-center gap-3 truncate">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white font-bold font-display shadow-soft shrink-0">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 font-display font-bold text-white shadow-soft">
                         {(analysis.conversation?.customerName || analysis.conversation?.customerEmail || '?')[0].toUpperCase()}
                       </div>
                       <div className="truncate">
-                        <p className="font-semibold text-surface-900 text-sm truncate pr-4">
+                        <p className="truncate pr-4 text-sm font-semibold text-surface-900">
                           {analysis.conversation?.customerName || analysis.conversation?.customerEmail || 'Cliente Local'}
                         </p>
-                        <p className="text-xs text-surface-500 truncate mt-0.5">
+                        <p className="mt-0.5 truncate text-xs text-surface-500">
                           Agente: {analysis.conversation?.assignedAgentName || 'N/A'}
                         </p>
                       </div>
                     </div>
 
-                    <button className="p-1.5 text-surface-300 hover:text-surface-600 rounded-md hover:bg-surface-100 transition-colors absolute right-4 top-4 opacity-0 group-hover:opacity-100 z-10">
-                      <MoreVertical className="w-4 h-4" />
+                    <button className="absolute right-4 top-4 rounded-md p-1.5 text-surface-300 opacity-0 transition-colors group-hover:opacity-100 hover:bg-surface-100 hover:text-surface-600">
+                      <MoreVertical className="h-4 w-4" />
                     </button>
                   </div>
 
-                  {/* Card Body */}
-                  <div className="p-5 flex-1 flex flex-col">
-                    <p className="text-sm text-surface-600 line-clamp-3 mb-4 flex-1 leading-relaxed">
-                      {analysis.preview || analysis.executiveSummary || 'Nenhum preview de texto disponível para esta análise de atendimento.'}
+                  <div className="flex flex-1 flex-col p-5">
+                    <p className="mb-4 line-clamp-3 flex-1 text-sm leading-relaxed text-surface-600">
+                      {getAnalysisPreview(analysis)}
                     </p>
 
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-surface-50 border border-surface-100 text-[11px] font-medium text-surface-500">
-                        <Hash className="w-3 h-3 text-surface-400" />
+                    <div className="mb-4 flex flex-wrap gap-2">
+                      <span className="inline-flex items-center gap-1.5 rounded border border-surface-100 bg-surface-50 px-2 py-1 text-[11px] font-medium text-surface-500">
+                        <Hash className="h-3 w-3 text-surface-400" />
                         {formatConversationId(analysis.conversationId)}
                       </span>
                       {analysis.conversation?.customerEmail && (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-surface-50 border border-surface-100 text-[11px] font-medium text-surface-500 truncate max-w-[150px]">
-                          <Mail className="w-3 h-3 text-surface-400 shrink-0" />
+                        <span className="inline-flex max-w-[150px] items-center gap-1.5 truncate rounded border border-surface-100 bg-surface-50 px-2 py-1 text-[11px] font-medium text-surface-500">
+                          <Mail className="h-3 w-3 shrink-0 text-surface-400" />
                           <span className="truncate">{analysis.conversation.customerEmail}</span>
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Card Footer */}
-                  <div className="px-5 py-4 border-t border-surface-100 bg-surface-50/50 flex flex-wrap items-center justify-between gap-3 rounded-b-2xl">
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-b-2xl border-t border-surface-100 bg-surface-50/50 px-5 py-4">
                     <div className="flex flex-col gap-1">
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-surface-400">Data e Hora</span>
-                      <span className="text-xs font-medium text-surface-600 flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-surface-400" />
-                        {new Date(analysis.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} • {' '}
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-surface-400">Data e Hora</span>
+                      <span className="flex items-center gap-1.5 text-xs font-medium text-surface-600">
+                        <Calendar className="h-3.5 w-3.5 text-surface-400" />
+                        {new Date(analysis.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} •{' '}
                         {new Date(analysis.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <span className={`badge border px-2.5 py-1 ${getRiskBadgeClass(displayRiskLevel)} flex items-center gap-1.5`}>
-                        <div className={`w-1.5 h-1.5 rounded-full bg-current ${displayRiskLevel === 'CRITICAL' ? 'animate-pulse' : ''}`}></div>
+                      <span className={`badge flex items-center gap-1.5 border px-2.5 py-1 ${getRiskBadgeClass(displayRiskLevel)}`}>
+                        <div className={`h-1.5 w-1.5 rounded-full bg-current ${displayRiskLevel === 'CRITICAL' ? 'animate-pulse' : ''}`}></div>
                         {getRiskBadgeLabel(displayRiskLevel)}
                       </span>
 
@@ -257,21 +256,21 @@ export const AnalysisList = () => {
                             e.stopPropagation();
                             navigate(`/analysis/${analysis.id}`);
                           }}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg text-brand-600 hover:bg-brand-50 transition-colors"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-brand-600 transition-colors hover:bg-brand-50"
                           title="Ver análise completa"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={e => handleDelete(analysis.id, e)}
+                          onClick={(e) => handleDelete(analysis.id, e)}
                           disabled={deleting === analysis.id}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50"
                           title="Deletar análise"
                         >
                           {deleting === analysis.id ? (
-                            <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent"></div>
                           ) : (
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="h-4 w-4" />
                           )}
                         </button>
                       </div>
