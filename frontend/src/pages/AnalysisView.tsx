@@ -187,6 +187,10 @@ export const AnalysisView = () => {
     setIsExportingPdf(true);
 
     try {
+      if ('fonts' in document) {
+        await document.fonts.ready;
+      }
+
       await waitForPaint();
 
       const sections = Array.from(
@@ -274,8 +278,8 @@ export const AnalysisView = () => {
 
           const sliceHeightMm = (sliceHeightPx * contentWidth) / canvas.width;
           pdf.addImage(
-            sliceCanvas.toDataURL('image/jpeg', 0.92),
-            'JPEG',
+            sliceCanvas.toDataURL('image/png'),
+            'PNG',
             margin,
             cursorY,
             contentWidth,
@@ -302,7 +306,7 @@ export const AnalysisView = () => {
       for (const section of sections) {
         const canvas = await html2canvas(section, {
           backgroundColor: '#ffffff',
-          scale: Math.min(window.devicePixelRatio || 1, 2),
+          scale: Math.min(Math.max(window.devicePixelRatio || 1, 2), 3),
           useCORS: true,
           logging: false,
         });
