@@ -174,6 +174,7 @@ export const AnalysisView = () => {
     };
 
     type PdfSection = {
+      key: string;
       title: string;
       lines: PdfLine[];
     };
@@ -192,6 +193,44 @@ export const AnalysisView = () => {
         .replace(/\r/g, '')
         .replace(/[ \t]+/g, ' ')
         .trim();
+
+    const palette = {
+      brand: { accent: [124, 58, 237] as const, fill: [245, 243, 255] as const, text: [91, 33, 182] as const },
+      indigo: { accent: [99, 102, 241] as const, fill: [238, 242, 255] as const, text: [67, 56, 202] as const },
+      rose: { accent: [244, 63, 94] as const, fill: [255, 241, 242] as const, text: [190, 24, 93] as const },
+      sky: { accent: [14, 165, 233] as const, fill: [240, 249, 255] as const, text: [3, 105, 161] as const },
+      teal: { accent: [20, 184, 166] as const, fill: [240, 253, 250] as const, text: [15, 118, 110] as const },
+      violet: { accent: [139, 92, 246] as const, fill: [245, 243, 255] as const, text: [109, 40, 217] as const },
+      red: { accent: [239, 68, 68] as const, fill: [254, 242, 242] as const, text: [185, 28, 28] as const },
+      emerald: { accent: [16, 185, 129] as const, fill: [236, 253, 245] as const, text: [4, 120, 87] as const },
+      slate: { accent: [100, 116, 139] as const, fill: [248, 250, 252] as const, text: [51, 65, 85] as const },
+    };
+
+    const sectionTheme = (key: string) => {
+      switch (key) {
+        case 'resumo':
+          return palette.brand;
+        case 'linha_tempo':
+          return palette.indigo;
+        case 'diagnostico':
+          return palette.rose;
+        case 'participacao':
+          return palette.sky;
+        case 'conducao':
+          return palette.teal;
+        case 'avaliacao':
+          return palette.violet;
+        case 'risco':
+          return palette.red;
+        case 'acoes':
+          return palette.emerald;
+        case 'evidencias':
+        case 'anexos':
+        case 'raw_text':
+        default:
+          return palette.slate;
+      }
+    };
 
     const paragraphLines = (text: string, indent = 0, prefix = ''): PdfLine[] =>
       text
@@ -282,6 +321,18 @@ export const AnalysisView = () => {
         cursorY = topMargin;
       };
 
+      const applyFillColor = (color: readonly [number, number, number]) => {
+        pdf.setFillColor(color[0], color[1], color[2]);
+      };
+
+      const applyDrawColor = (color: readonly [number, number, number]) => {
+        pdf.setDrawColor(color[0], color[1], color[2]);
+      };
+
+      const applyTextColor = (color: readonly [number, number, number]) => {
+        pdf.setTextColor(color[0], color[1], color[2]);
+      };
+
       const writeWrappedLine = (line: PdfLine) => {
         const indent = (line.indent || 0) * indentWidth;
         const x = marginX + indent;
@@ -295,7 +346,7 @@ export const AnalysisView = () => {
         ensureSpace(wrapped.length * lineHeight);
         pdf.setFont('helvetica', line.bold ? 'bold' : 'normal');
         pdf.setFontSize(10);
-        pdf.setTextColor(51, 65, 85);
+        pdf.setTextColor(line.bold ? 15 : 51, line.bold ? 23 : 65, line.bold ? 42 : 85);
         pdf.text(wrapped, x, cursorY);
         cursorY += wrapped.length * lineHeight;
       };
@@ -303,23 +354,25 @@ export const AnalysisView = () => {
       const drawHeader = () => {
         const cardHeight = 28;
         ensureSpace(cardHeight);
-        pdf.setDrawColor(226, 232, 240);
-        pdf.setFillColor(248, 250, 252);
+        applyDrawColor(palette.brand.fill);
+        pdf.setFillColor(255, 255, 255);
         pdf.roundedRect(marginX, cursorY, contentWidth, cardHeight, 3, 3, 'FD');
+        applyFillColor(palette.brand.accent);
+        pdf.roundedRect(marginX, cursorY, 4, cardHeight, 3, 3, 'F');
 
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(18);
         pdf.setTextColor(15, 23, 42);
-        pdf.text(customerDisplayName, marginX + 4, cursorY + 8);
+        pdf.text(customerDisplayName, marginX + 10, cursorY + 8);
 
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(9);
         pdf.setTextColor(71, 85, 105);
-        pdf.text(`Email: ${conversationInfo?.customerEmail || 'Sem email'}`, marginX + 4, cursorY + 15);
-        pdf.text(`Conversa: ${conversationInfo?.conversationId || 'N/A'}`, marginX + 4, cursorY + 20);
+        pdf.text(`Email: ${conversationInfo?.customerEmail || 'Sem email'}`, marginX + 10, cursorY + 15);
+        pdf.text(`Conversa: ${conversationInfo?.conversationId || 'N/A'}`, marginX + 10, cursorY + 20);
         pdf.text(
           `Exportado em: ${new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date())}`,
-          marginX + 4,
+          marginX + 10,
           cursorY + 25
         );
 
@@ -327,17 +380,25 @@ export const AnalysisView = () => {
       };
 
       const drawSection = (section: PdfSection) => {
+        const theme = sectionTheme(section.key);
         ensureSpace(12);
-        pdf.setFillColor(255, 255, 255);
+        applyFillColor(theme.fill);
         pdf.setDrawColor(226, 232, 240);
         pdf.roundedRect(marginX, cursorY, contentWidth, 10, 2.5, 2.5, 'FD');
+        applyFillColor(theme.accent);
+        pdf.roundedRect(marginX, cursorY, 3, 10, 2.5, 2.5, 'F');
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(12);
-        pdf.setTextColor(15, 23, 42);
-        pdf.text(section.title, marginX + 4, cursorY + 6.5);
+        applyTextColor(theme.text);
+        pdf.text(section.title, marginX + 8, cursorY + 6.5);
         cursorY += 15;
 
+        const sectionStartY = cursorY - 3;
+
         section.lines.forEach(writeWrappedLine);
+        const bodyHeight = Math.max(cursorY - sectionStartY + 2, 10);
+        applyDrawColor(theme.fill);
+        pdf.line(marginX + 1.5, sectionStartY, marginX + 1.5, sectionStartY + bodyHeight);
         cursorY += sectionSpacing;
       };
 
@@ -345,12 +406,14 @@ export const AnalysisView = () => {
 
       if (analysis._raw_text) {
         pdfSections.push({
+          key: 'raw_text',
           title: 'Texto Original da Analise',
           lines: buildPdfLines(analysis._raw_text),
         });
       } else {
         if (analysis.resumo_executivo) {
           pdfSections.push({
+            key: 'resumo',
             title: 'Resumo Executivo',
             lines: buildPdfLines(analysis.resumo_executivo),
           });
@@ -358,6 +421,7 @@ export const AnalysisView = () => {
 
         if (analysis.linha_do_tempo) {
           pdfSections.push({
+            key: 'linha_tempo',
             title: 'Linha do Tempo',
             lines: buildPdfLines(analysis.linha_do_tempo),
           });
@@ -365,6 +429,7 @@ export const AnalysisView = () => {
 
         if (Object.keys(problema).length > 0) {
           pdfSections.push({
+            key: 'diagnostico',
             title: 'Diagnostico do Caso',
             lines: buildPdfLines(problema),
           });
@@ -372,6 +437,7 @@ export const AnalysisView = () => {
 
         if (Object.keys(participacao).length > 0) {
           pdfSections.push({
+            key: 'participacao',
             title: 'Participacao e Handoffs',
             lines: buildPdfLines(participacao),
           });
@@ -379,6 +445,7 @@ export const AnalysisView = () => {
 
         if (Object.keys(conducao).length > 0) {
           pdfSections.push({
+            key: 'conducao',
             title: 'Conducao do Atendimento',
             lines: buildPdfLines(conducao),
           });
@@ -393,6 +460,7 @@ export const AnalysisView = () => {
 
           avaliacaoLines.push(...buildPdfLines(avaliacao));
           pdfSections.push({
+            key: 'avaliacao',
             title: 'Avaliacao Padronizada (QA)',
             lines: avaliacaoLines.filter((line) => line.text !== '' || line.gapBefore),
           });
@@ -400,6 +468,7 @@ export const AnalysisView = () => {
 
         if (Object.keys(risco).length > 0) {
           pdfSections.push({
+            key: 'risco',
             title: 'Analise de Risco',
             lines: buildPdfLines(risco),
           });
@@ -407,6 +476,7 @@ export const AnalysisView = () => {
 
         if (Array.isArray(acoesRecomendadas) && acoesRecomendadas.length > 0) {
           pdfSections.push({
+            key: 'acoes',
             title: 'Planos de Acao Recomendados',
             lines: buildPdfLines(acoesRecomendadas),
           });
@@ -414,6 +484,7 @@ export const AnalysisView = () => {
 
         if (Array.isArray(analysis.evidencias_chave) && analysis.evidencias_chave.length > 0) {
           pdfSections.push({
+            key: 'evidencias',
             title: 'Evidencias-Chave',
             lines: buildPdfLines(analysis.evidencias_chave),
           });
@@ -421,6 +492,7 @@ export const AnalysisView = () => {
 
         if (Array.isArray(anexos) && anexos.length > 0) {
           pdfSections.push({
+            key: 'anexos',
             title: 'Midia Analisada',
             lines: buildPdfLines(anexos),
           });
