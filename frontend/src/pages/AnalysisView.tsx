@@ -398,10 +398,10 @@ export const AnalysisView = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8 flex items-start gap-8 lg:flex-row-reverse">
+      <div className="max-w-[90rem] mx-auto px-6 py-8 flex items-start gap-8 lg:flex-row-reverse">
 
         {/* Left Navigation Sidebar - Scroll Spy */}
-        <div className="w-64 shrink-0 sticky top-28 hidden lg:block">
+        <div className="w-56 shrink-0 sticky top-28 hidden lg:block">
 
           <div className="card-glass p-2">
             <div className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-surface-400">Navegação</div>
