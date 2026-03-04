@@ -61,7 +61,7 @@ const getAnalysisPreview = (analysis: any) => {
     }
   }
 
-  return analysis.executiveSummary || analysis.preview || 'Nenhum preview de texto disponivel para esta analise de atendimento.';
+  return analysis.executiveSummary || analysis.preview || 'Nenhum preview de texto disponível para esta análise de atendimento.';
 };
 
 const getRiskBadgeClass = (riskLevel: RiskLevel) => {
@@ -79,26 +79,26 @@ const getRiskDotClass = (riskLevel: RiskLevel) => {
 };
 
 const getRiskBadgeLabel = (riskLevel: RiskLevel) => {
-  if (riskLevel === 'CRITICAL') return 'Critico';
+  if (riskLevel === 'CRITICAL') return 'Crítico';
   if (riskLevel === 'HIGH') return 'Alto';
-  if (riskLevel === 'MEDIUM') return 'Medio';
+  if (riskLevel === 'MEDIUM') return 'Médio';
   return 'Baixo';
 };
 
 const riskFilterOptions: Array<{ value: RiskFilter; label: string }> = [
   { value: 'ALL', label: 'Todos os riscos' },
-  { value: 'CRITICAL', label: 'Critico' },
+  { value: 'CRITICAL', label: 'Crítico' },
   { value: 'HIGH', label: 'Alto' },
-  { value: 'MEDIUM', label: 'Medio' },
+  { value: 'MEDIUM', label: 'Médio' },
   { value: 'LOW', label: 'Baixo' },
 ];
 
 const periodFilterOptions: Array<{ value: Exclude<PeriodFilter, 'CUSTOM'>; label: string }> = [
-  { value: 'ALL', label: 'Todo o periodo' },
+  { value: 'ALL', label: 'Todo o período' },
   { value: 'TODAY', label: 'Hoje' },
-  { value: 'LAST_7_DAYS', label: 'Ultimos 7 dias' },
-  { value: 'LAST_30_DAYS', label: 'Ultimos 30 dias' },
-  { value: 'LAST_90_DAYS', label: 'Ultimos 90 dias' },
+  { value: 'LAST_7_DAYS', label: 'Últimos 7 dias' },
+  { value: 'LAST_30_DAYS', label: 'Últimos 30 dias' },
+  { value: 'LAST_90_DAYS', label: 'Últimos 90 dias' },
 ];
 
 const getAnalysisSearchableText = (analysis: any) =>
@@ -210,7 +210,7 @@ export const AnalysisList = () => {
       const data = await analysisService.list();
       setAnalyses(data);
     } catch {
-      console.error('Erro ao carregar analises');
+      console.error('Erro ao carregar análises');
     } finally {
       setLoading(false);
     }
@@ -219,14 +219,14 @@ export const AnalysisList = () => {
   const handleDelete = async (id: string, e: ReactMouseEvent) => {
     e.stopPropagation();
 
-    if (!confirm('Tem certeza que deseja deletar esta analise?')) return;
+    if (!confirm('Tem certeza que deseja deletar esta análise?')) return;
 
     setDeleting(id);
     try {
       await analysisService.delete(id);
       setAnalyses((prev) => prev.filter((analysis) => analysis.id !== id));
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Erro ao deletar analise');
+      alert(err.response?.data?.message || 'Erro ao deletar análise');
     } finally {
       setDeleting(null);
     }
@@ -274,19 +274,19 @@ export const AnalysisList = () => {
           <div className="flex-1">
             <h1 className="flex items-center gap-3 text-3xl font-display font-bold text-surface-900">
               <Sparkles className="h-8 w-8 text-brand-500" />
-              Historico de Analises
+              Histórico de Análises
             </h1>
             <p className="mt-2 max-w-xl text-sm text-surface-500">
-              Acompanhe todas as analises de atendimento feitas pela IA. Filtre e busque por risco, cliente ou data para encontrar insights rapidamente.
+              Acompanhe todas as análises de atendimento feitas pela IA. Filtre e busque por risco, cliente ou data para encontrar insights rapidamente.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-3">
             <div className="card-glass flex items-center gap-2 border border-surface-200 px-4 py-2.5 text-sm font-medium text-surface-600 shadow-sm">
               <span className="h-2.5 w-2.5 animate-pulse-slow rounded-full bg-brand-500"></span>
-              {analyses.length} analise{analyses.length !== 1 && 's'} gerada{analyses.length !== 1 && 's'}
+              {analyses.length} análise{analyses.length !== 1 && 's'} gerada{analyses.length !== 1 && 's'}
             </div>
             <button onClick={() => navigate('/search')} className="btn btn-primary">
-              + Nova Analise
+              + Nova Análise
             </button>
           </div>
         </div>
@@ -320,7 +320,7 @@ export const AnalysisList = () => {
 
               {isFiltersOpen && (
                 <div className="absolute right-0 z-10 mt-2 w-56 rounded-2xl border border-surface-200 bg-white p-3 shadow-soft">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-surface-400">Nivel de risco</p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-surface-400">Nível de risco</p>
                   <div className="space-y-2">
                     {riskFilterOptions.map((option) => (
                       <button
@@ -358,13 +358,13 @@ export const AnalysisList = () => {
               >
                 <Calendar className="mr-2 h-4 w-4" />
                 {periodFilter === 'CUSTOM'
-                  ? 'Periodo personalizado'
-                  : periodFilterOptions.find((option) => option.value === periodFilter)?.label || 'Periodo'}
+                  ? 'Período personalizado'
+                  : periodFilterOptions.find((option) => option.value === periodFilter)?.label || 'Período'}
               </button>
 
               {isPeriodOpen && (
                 <div className="absolute right-0 z-10 mt-2 w-72 rounded-2xl border border-surface-200 bg-white p-3 shadow-soft">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-surface-400">Periodo</p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-surface-400">Período</p>
                   <div className="space-y-2">
                     {periodFilterOptions.map((option) => (
                       <button
@@ -410,7 +410,7 @@ export const AnalysisList = () => {
                       </label>
 
                       <label className="block text-xs font-semibold uppercase tracking-wider text-surface-400">
-                        Ate
+                        Até
                         <input
                           type="date"
                           value={customEndDate}
@@ -429,7 +429,7 @@ export const AnalysisList = () => {
         {(searchTerm || riskFilter !== 'ALL' || periodFilter !== 'ALL') && (
           <div className="mb-6 flex flex-wrap items-center gap-3 text-sm text-surface-500 animate-fade-in">
             <span>
-              Exibindo {filteredAnalyses.length} de {analyses.length} analise{analyses.length !== 1 && 's'}
+              Exibindo {filteredAnalyses.length} de {analyses.length} análise{analyses.length !== 1 && 's'}
             </span>
             <button
               onClick={clearFilters}
@@ -442,7 +442,7 @@ export const AnalysisList = () => {
 
         {hasInvalidCustomRange && (
           <div className="mb-6 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-            O periodo personalizado esta invalido. A data inicial precisa ser anterior a data final.
+            O período personalizado está inválido. A data inicial precisa ser anterior à data final.
           </div>
         )}
 
@@ -451,15 +451,15 @@ export const AnalysisList = () => {
             <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-brand-50 shadow-soft">
               <Sparkles className="h-10 w-10 text-brand-400" />
             </div>
-            <h3 className="mb-2 text-xl font-display font-medium text-surface-900">Nenhuma analise disponivel</h3>
+            <h3 className="mb-2 text-xl font-display font-medium text-surface-900">Nenhuma análise disponível</h3>
             <p className="mb-6 max-w-sm text-surface-500">
-              Voce ainda nao realizou nenhuma analise com IA. Inicie uma nova busca para gerar a primeira.
+              Você ainda não realizou nenhuma análise com IA. Inicie uma nova busca para gerar a primeira.
             </p>
             <button
               onClick={() => navigate('/search')}
               className="btn bg-[conic-gradient(at_top_right,_var(--tw-gradient-stops))] from-brand-500 via-indigo-500 to-brand-600 text-white shadow-soft shadow-brand-500/30"
             >
-              Comecar Agora
+              Começar Agora
             </button>
           </div>
         ) : filteredAnalyses.length === 0 ? (
@@ -469,7 +469,7 @@ export const AnalysisList = () => {
             </div>
             <h3 className="mb-2 text-xl font-display font-medium text-surface-900">Nenhum resultado encontrado</h3>
             <p className="mb-6 max-w-sm text-surface-500">
-              Ajuste a busca, o filtro de risco ou o periodo para localizar analises no historico.
+              Ajuste a busca, o filtro de risco ou o período para localizar análises no histórico.
             </p>
             <button onClick={clearFilters} className="btn btn-secondary bg-white shadow-sm">
               Limpar filtros
@@ -550,7 +550,7 @@ export const AnalysisList = () => {
                             navigate(`/analysis/${analysis.id}`);
                           }}
                           className="flex h-8 w-8 items-center justify-center rounded-lg text-brand-600 transition-colors hover:bg-brand-50"
-                          title="Ver analise completa"
+                          title="Ver análise completa"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
@@ -558,7 +558,7 @@ export const AnalysisList = () => {
                           onClick={(e) => handleDelete(analysis.id, e)}
                           disabled={deleting === analysis.id}
                           className="flex h-8 w-8 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50"
-                          title="Deletar analise"
+                          title="Deletar análise"
                         >
                           {deleting === analysis.id ? (
                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent"></div>
