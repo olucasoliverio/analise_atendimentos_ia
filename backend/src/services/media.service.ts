@@ -1,7 +1,10 @@
 import axios from 'axios';
+import dns from 'dns/promises';
 import https from 'https';
+import net from 'net';
 import sharp from 'sharp';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { debugLog, maskUrl } from '../utils/logger';
 
 export interface ProcessedMedia {
   type: 'image' | 'audio' | 'video';
@@ -15,6 +18,8 @@ export interface ProcessedMedia {
 export class MediaService {
   private genAI: GoogleGenerativeAI;
   private httpsAgent: https.Agent;
+  private readonly allowHttpInDevelopment: boolean;
+  private readonly allowedHosts: string[];
   private readonly allowedMimeTypes = new Set([
     'image/png',
     'image/jpeg',
@@ -48,6 +53,22 @@ export class MediaService {
 
   constructor() {
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+    this.allowHttpInDevelopment =
+      process.env.NODE_ENV === 'development' && process.env.ALLOW_INSECURE_MEDIA_HTTP === 'true';
+
+    const configuredHosts = (process.env.MEDIA_ALLOWED_HOSTS || '')
+      .split(',')
+      .map((entry) => entry.trim().toLowerCase())
+      .filter(Boolean);
+
+    try {
+      const freshchatHost = process.env.FRESHCHAT_API_URL
+        ? new URL(process.env.FRESHCHAT_API_URL).hostname.toLowerCase()
+        : '';
+      this.allowedHosts = [...new Set([...configuredHosts, freshchatHost].filter(Boolean))];
+    } catch {
+      this.allowedHosts = configuredHosts;
+    }
     
     const isDevelopment = process.env.NODE_ENV === 'development';
     const allowInsecureTLS = process.env.ALLOW_INSECURE_TLS === 'true';
@@ -79,9 +100,10 @@ export class MediaService {
    */
   private async downloadAndConvert(url: string): Promise<ProcessedMedia | null> {
     try {
-      console.log(`⬇️ Baixando: ${url}`);
+      const safeUrl = await this.assertSafeMediaUrl(url);
+      debugLog(`⬇️ Baixando mídia autorizada: ${maskUrl(safeUrl.toString())}`);
       
-      const response = await axios.get(url, {
+      const response = await axios.get(safeUrl.toString(), {
         responseType: 'arraybuffer',
         timeout: 30000,
         httpsAgent: this.httpsAgent,
@@ -93,10 +115,10 @@ export class MediaService {
       const originalSize = originalBuffer.length;
       
       const rawContentType = response.headers['content-type'] || '';
-      const contentType = this.normalizeMimeType(rawContentType, url);
+      const contentType = this.normalizeMimeType(rawContentType, safeUrl.toString());
 
       if (!this.allowedMimeTypes.has(contentType)) {
-        console.warn(`Mídia ignorada (MIME não suportado): ${contentType}`);
+        console.warn(`Midia ignorada (MIME nao suportado): ${contentType}`);
         return null;
       }
 
@@ -109,7 +131,7 @@ export class MediaService {
       let compressedSize = originalSize;
 
       if (type === 'image' && originalSize > this.IMAGE_MAX_SIZE) {
-        console.log(`🗜️ Comprimindo imagem: ${this.formatBytes(originalSize)}`);
+        debugLog(`🗜️ Comprimindo imagem: ${this.formatBytes(originalSize)}`);
         
         const compressed = await this.compressImage(originalBuffer, contentType);
         
@@ -118,7 +140,7 @@ export class MediaService {
           compressedSize = compressed.length;
           
           const reduction = Math.round((1 - compressedSize / originalSize) * 100);
-          console.log(`✅ Comprimido: ${this.formatBytes(compressedSize)} (${reduction}% redução)`);
+          debugLog(`✅ Comprimido: ${this.formatBytes(compressedSize)} (${reduction}% reducao)`);
         }
       }
 
@@ -135,9 +157,11 @@ export class MediaService {
 
     } catch (error: any) {
       if (error.code === 'CERT_HAS_EXPIRED' || error.code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE') {
-        console.error(`❌ Erro de certificado TLS para ${url}`);
+        console.error(`Falha de certificado TLS ao baixar midia autorizada: ${maskUrl(url)}`);
+      } else if (error.message?.includes('Bloqueado por politica de seguranca')) {
+        console.warn(`Download de midia bloqueado por seguranca: ${maskUrl(url)}`);
       } else {
-        console.error(`❌ Falha ao baixar ${url}:`, error.message);
+        console.error(`Falha ao baixar midia autorizada ${maskUrl(url)}:`, error.message);
       }
       return null;
     }
@@ -154,7 +178,7 @@ export class MediaService {
       const image = sharp(buffer);
       const metadata = await image.metadata();
 
-      console.log(`📐 Dimensões originais: ${metadata.width}x${metadata.height}`);
+      debugLog(`📐 Dimensoes originais: ${metadata.width}x${metadata.height}`);
 
       // ✅ Redimensionar se necessário
       let pipeline = image.resize({
@@ -179,7 +203,7 @@ export class MediaService {
       const compressed = await pipeline.toBuffer();
       
       const newMetadata = await sharp(compressed).metadata();
-      console.log(`📐 Dimensões finais: ${newMetadata.width}x${newMetadata.height}`);
+      debugLog(`📐 Dimensoes finais: ${newMetadata.width}x${newMetadata.height}`);
 
       return compressed;
 
@@ -199,7 +223,8 @@ export class MediaService {
     needsCompression: boolean;
   } | null> {
     try {
-      const response = await axios.head(url, {
+      const safeUrl = await this.assertSafeMediaUrl(url);
+      const response = await axios.head(safeUrl.toString(), {
         httpsAgent: this.httpsAgent,
         timeout: 5000
       });
@@ -259,5 +284,93 @@ export class MediaService {
 
     const urlLower = url.toLowerCase();
     return supportedExtensions.some(ext => urlLower.includes(ext));
+  }
+
+  private async assertSafeMediaUrl(rawUrl: string): Promise<URL> {
+    let parsedUrl: URL;
+
+    try {
+      parsedUrl = new URL(rawUrl);
+    } catch {
+      throw new Error('Bloqueado por politica de seguranca: URL de midia invalida');
+    }
+
+    const protocolAllowed =
+      parsedUrl.protocol === 'https:' || (this.allowHttpInDevelopment && parsedUrl.protocol === 'http:');
+
+    if (!protocolAllowed) {
+      throw new Error('Bloqueado por politica de seguranca: protocolo de midia nao permitido');
+    }
+
+    if (parsedUrl.username || parsedUrl.password) {
+      throw new Error('Bloqueado por politica de seguranca: URL autenticada nao permitida');
+    }
+
+    const hostname = parsedUrl.hostname.toLowerCase();
+    if (this.isLocalHostname(hostname)) {
+      throw new Error('Bloqueado por politica de seguranca: host local nao permitido');
+    }
+
+    if (this.allowedHosts.length > 0 && !this.isAllowedHost(hostname)) {
+      throw new Error('Bloqueado por politica de seguranca: host fora da allowlist');
+    }
+
+    const resolvedAddresses = net.isIP(hostname)
+      ? [{ address: hostname }]
+      : await dns.lookup(hostname, { all: true, verbatim: true });
+
+    if (resolvedAddresses.length === 0) {
+      throw new Error('Bloqueado por politica de seguranca: host sem resolucao DNS valida');
+    }
+
+    for (const entry of resolvedAddresses) {
+      if (this.isPrivateOrReservedIp(entry.address)) {
+        throw new Error('Bloqueado por politica de seguranca: endereco privado ou reservado');
+      }
+    }
+
+    return parsedUrl;
+  }
+
+  private isAllowedHost(hostname: string): boolean {
+    return this.allowedHosts.some((allowedHost) =>
+      hostname === allowedHost || hostname.endsWith(`.${allowedHost}`)
+    );
+  }
+
+  private isLocalHostname(hostname: string): boolean {
+    return hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local');
+  }
+
+  private isPrivateOrReservedIp(address: string): boolean {
+    const family = net.isIP(address);
+    if (family === 4) {
+      const octets = address.split('.').map((value) => Number(value));
+      const [a, b] = octets;
+
+      return (
+        a === 10 ||
+        a === 127 ||
+        a === 0 ||
+        (a === 169 && b === 254) ||
+        (a === 172 && b >= 16 && b <= 31) ||
+        (a === 192 && b === 168) ||
+        (a === 100 && b >= 64 && b <= 127) ||
+        (a === 198 && (b === 18 || b === 19))
+      );
+    }
+
+    if (family === 6) {
+      const normalized = address.toLowerCase();
+      return (
+        normalized === '::1' ||
+        normalized.startsWith('fc') ||
+        normalized.startsWith('fd') ||
+        normalized.startsWith('fe80') ||
+        normalized === '::'
+      );
+    }
+
+    return true;
   }
 }

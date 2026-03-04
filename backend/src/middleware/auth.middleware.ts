@@ -1,27 +1,26 @@
 import 'dotenv/config';
-import { Request, Response, NextFunction } from 'express';
-
-import jwt, { JwtPayload } from 'jsonwebtoken';
+import { NextFunction, Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 import { prisma } from '../config/database';
 import { AppError } from './errorHandler';
+import { debugLog, maskEmail } from '../utils/logger';
 
 export interface AuthRequest extends Request {
   userId?: string;
 }
 
-// Configurar o cliente JWKS para o Supabase (para tokens ES256)
 const client = jwksClient({
   jwksUri: `${process.env.SUPABASE_URL}/auth/v1/.well-known/jwks.json`,
   requestHeaders: {
-    'apikey': process.env.SUPABASE_ANON_KEY || '' // Algumas instâncias pedem a anon key
+    apikey: process.env.SUPABASE_ANON_KEY || ''
   },
   cache: true,
   rateLimit: true,
   jwksRequestsPerMinute: 10
 });
 
-function getKey(header: any, callback: any) {
+function getKey(header: jwt.JwtHeader, callback: jwt.SigningKeyCallback) {
   client.getSigningKey(header.kid, (err, key) => {
     if (err) return callback(err);
     const signingKey = key?.getPublicKey();
@@ -38,12 +37,11 @@ export const authMiddleware = async (
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {
-      return next(new AppError('Token não fornecido', 401));
+      return next(new AppError('Token nao fornecido', 401));
     }
 
     const [, token] = authHeader.split(' ');
 
-    // 1. Decodificar sem verificar primeiro para ver o algoritmo
     const decodedToken = jwt.decode(token, { complete: true });
     if (!decodedToken || typeof decodedToken === 'string') {
       return next(new AppError('Token malformado', 401));
@@ -54,27 +52,25 @@ export const authMiddleware = async (
 
     if (header.alg === 'HS256') {
       const secret = process.env.SUPABASE_JWT_SECRET!;
-      // Tentar decodificar segredo base64 se parecer base64
       const secretToUse = secret.includes('+') || secret.includes('/')
         ? Buffer.from(secret, 'base64')
         : secret;
+
       decoded = jwt.verify(token, secretToUse, { algorithms: ['HS256'] });
-      console.log('✅ Token HS256 verificado:', decoded.email);
+      debugLog('Token HS256 verificado para usuario autenticado:', maskEmail(decoded.email));
     } else {
-      // ES256 ou outros: buscar chave pública
-      console.log('🔑 Buscando chave para algoritmo:', header.alg);
+      debugLog('Validando token Supabase via JWKS para algoritmo:', header.alg);
       decoded = await new Promise((resolve, reject) => {
-        jwt.verify(token, getKey, { algorithms: [header.alg as any] }, (err, result) => {
+        jwt.verify(token, getKey, { algorithms: [header.alg as jwt.Algorithm] }, (err, result) => {
           if (err) reject(err);
           else resolve(result);
         });
       });
-      console.log('✅ Token ES256 verificado via JWKS:', decoded.email);
+      debugLog('Token ES256 verificado para usuario autenticado:', maskEmail(decoded.email));
     }
 
-
     if (!decoded || !decoded.sub || !decoded.email) {
-      return next(new AppError('Token inválido ou incompleto', 401));
+      return next(new AppError('Token invalido ou incompleto', 401));
     }
 
     const supabaseUserId: string = decoded.sub;
@@ -83,9 +79,8 @@ export const authMiddleware = async (
       decoded.user_metadata?.full_name ||
       decoded.user_metadata?.name ||
       email.split('@')[0] ||
-      'Usuário';
+      'Usuario';
 
-    // Buscar ou criar o utilizador local no banco
     let user = await (prisma.user as any).findFirst({
       where: { supabaseId: supabaseUserId }
     });
@@ -106,19 +101,20 @@ export const authMiddleware = async (
     req.userId = user.id;
     next();
   } catch (error: any) {
-    console.error('❌ Erro na autenticação:', error.message);
+    console.error('Falha na autenticacao:', error.message);
+
     if (error.name === 'JsonWebTokenError') {
-      console.error('   Detalhe: Token inválido ou assinatura não bate.');
-      return next(new AppError('Token inválido', 401));
-    } else if (error.name === 'TokenExpiredError') {
-      console.error('   Detalhe: Token expirado.');
-      return next(new AppError('Token expirado', 401));
-    } else if (error.name?.startsWith('Prisma')) {
-      console.error('   Detalhe: Falha de conexão ou pool do banco esgotado.');
-      return next(new AppError('Serviço temporariamente indisponível', 503));
-    } else {
-      console.error('   Tipo do erro:', error.name);
+      return next(new AppError('Token invalido', 401));
     }
-    next(new AppError('Erro interno durante autenticação', 500));
+
+    if (error.name === 'TokenExpiredError') {
+      return next(new AppError('Token expirado', 401));
+    }
+
+    if (error.name?.startsWith('Prisma')) {
+      return next(new AppError('Servico temporariamente indisponivel', 503));
+    }
+
+    next(new AppError('Erro interno durante autenticacao', 500));
   }
 };

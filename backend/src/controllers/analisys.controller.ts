@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 
 import { randomUUID } from 'crypto';
 import { FreshchatCacheService } from '../services/freshchat-cache.service';
+import { AnalysisJobService } from '../services/analysis-job.service';
 import { GeminiService } from '../services/gemini.service';
 import { MediaService } from '../services/media.service';
 import { prisma } from '../config/database';
@@ -13,32 +14,43 @@ const cacheService = new FreshchatCacheService();
 const geminiService = new GeminiService();
 const mediaService = new MediaService();
 
-type AnalysisJobStatus = 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED';
-
-interface AnalysisJob {
-  id: string;
-  userId: string;
-  conversationIds: string[];
-  status: AnalysisJobStatus;
-  progress: number;
-  message: string;
-  analysisId?: string;
-  conversationId?: string;
-  cached?: boolean;
-  error?: string;
-  createdAt: Date;
-  startedAt?: Date;
-  finishedAt?: Date;
-  updatedAt: Date;
-}
-
-const analysisJobs = new Map<string, AnalysisJob>();
-const JOB_TTL_MS = 1000 * 60 * 60 * 24; // 24h
-
 export class AnalysisController {
   private readonly CACHE_BATCH_SIZE = 2;
+  private readonly JOB_TTL_MS = 1000 * 60 * 60 * 24; // 24h
+  private readonly MAX_CONVERSATIONS_PER_JOB = this.getEnvInt('ANALYSIS_MAX_CONVERSATIONS_PER_JOB', 10);
+  private readonly MAX_ACTIVE_JOBS_PER_USER = this.getEnvInt('ANALYSIS_MAX_ACTIVE_JOBS_PER_USER', 2);
+  private readonly MAX_ACTIVE_JOBS_GLOBAL = this.getEnvInt('ANALYSIS_MAX_ACTIVE_JOBS_GLOBAL', 20);
+  private readonly RESUME_JOB_BATCH_SIZE = this.getEnvInt('ANALYSIS_RESUME_JOB_BATCH_SIZE', 10);
+  private readonly jobService = new AnalysisJobService();
+  private readonly jobsBootstrapPromise: Promise<void>;
+
+  constructor() {
+    this.jobsBootstrapPromise = this.bootstrapJobs();
+  }
+
+  private getEnvInt(name: string, fallback: number): number {
+    const parsed = Number(process.env[name]);
+    return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+  }
+
+  private async bootstrapJobs() {
+    await this.jobService.ensureTable();
+    await this.jobService.requeueStaleRunningJobs();
+    await this.jobService.cleanupOldJobs(this.JOB_TTL_MS);
+
+    const queuedJobIds = await this.jobService.listQueuedJobIds(this.RESUME_JOB_BATCH_SIZE);
+    queuedJobIds.forEach((jobId) => {
+      void this.processJob(jobId);
+    });
+  }
+
+  private async ensureJobsReady() {
+    await this.jobsBootstrapPromise;
+  }
 
   create = catchAsync(async (req: Request & { userId?: string }, res: Response, next: NextFunction) => {
+    await this.ensureJobsReady();
+
     const { conversationIds: rawConversationIds } = req.body;
     const userId = req.userId!;
     const conversationIds = this.normalizeConversationIds(rawConversationIds);
@@ -47,23 +59,40 @@ export class AnalysisController {
       throw new AppError('Forneca pelo menos um ID de conversa valido', 400);
     }
 
-    this.cleanupOldJobs();
+    if (conversationIds.length > this.MAX_CONVERSATIONS_PER_JOB) {
+      throw new AppError(
+        `Cada analise aceita no maximo ${this.MAX_CONVERSATIONS_PER_JOB} conversas por requisicao`,
+        400
+      );
+    }
+
+    const [activeJobsForUser, activeJobsGlobal] = await Promise.all([
+      this.jobService.countActiveJobsForUser(userId),
+      this.jobService.countActiveJobs()
+    ]);
+
+    if (activeJobsForUser >= this.MAX_ACTIVE_JOBS_PER_USER) {
+      throw new AppError('Voce ja possui analises em andamento. Aguarde a conclusao antes de criar novas.', 429);
+    }
+
+    if (activeJobsGlobal >= this.MAX_ACTIVE_JOBS_GLOBAL) {
+      throw new AppError('Fila de analises temporariamente cheia. Tente novamente em instantes.', 503);
+    }
+
+    await this.jobService.cleanupOldJobs(this.JOB_TTL_MS);
 
     const jobId = randomUUID();
-    const now = new Date();
 
-    analysisJobs.set(jobId, {
+    await this.jobService.createJob({
       id: jobId,
       userId,
       conversationIds,
       status: 'QUEUED',
       progress: 0,
-      message: 'Analise enfileirada',
-      createdAt: now,
-      updatedAt: now
+      message: 'Analise enfileirada'
     });
 
-    void this.processJob(jobId, userId, conversationIds);
+    void this.processJob(jobId);
 
     return res.status(202).json({
       jobId,
@@ -74,11 +103,13 @@ export class AnalysisController {
   });
 
   getJobStatus = catchAsync(async (req: Request & { userId?: string }, res: Response, next: NextFunction) => {
+    await this.ensureJobsReady();
+
     const { jobId } = req.params;
     const userId = req.userId!;
-    const job = analysisJobs.get(jobId);
+    const job = await this.jobService.getJobForUser(jobId, userId);
 
-    if (!job || job.userId !== userId) {
+    if (!job) {
       throw new AppError('Job de analise nao encontrado', 404);
     }
 
@@ -129,42 +160,18 @@ export class AnalysisController {
     return results;
   }
 
-  private updateJob(jobId: string, updates: Partial<AnalysisJob>) {
-    const current = analysisJobs.get(jobId);
-    if (!current) return;
+  private async processJob(jobId: string) {
+    await this.ensureJobsReady();
 
-    analysisJobs.set(jobId, {
-      ...current,
-      ...updates,
-      updatedAt: new Date()
-    });
-  }
-
-  private cleanupOldJobs() {
-    const now = Date.now();
-
-    for (const [jobId, job] of analysisJobs.entries()) {
-      const referenceTime = job.finishedAt?.getTime() || job.updatedAt.getTime();
-      if (now - referenceTime > JOB_TTL_MS) {
-        analysisJobs.delete(jobId);
-      }
-    }
-  }
-
-  private async processJob(jobId: string, userId: string, conversationIds: string[]) {
-    this.updateJob(jobId, {
-      status: 'RUNNING',
-      progress: 5,
-      message: 'Iniciando analise...',
-      startedAt: new Date()
-    });
+    const job = await this.jobService.claimQueuedJob(jobId);
+    if (!job) return;
 
     try {
-      const { analysis, cached } = await this.runAnalysis(conversationIds, userId, (progress, message) => {
-        this.updateJob(jobId, { progress, message });
+      const { analysis, cached } = await this.runAnalysis(job.conversationIds, job.userId, (progress, message) => {
+        return this.jobService.updateJob(jobId, { progress, message });
       });
 
-      this.updateJob(jobId, {
+      await this.jobService.updateJob(jobId, {
         status: 'COMPLETED',
         progress: 100,
         message: cached ? 'Analise retornada do cache' : 'Analise finalizada',
@@ -174,7 +181,7 @@ export class AnalysisController {
         finishedAt: new Date()
       });
     } catch (error: any) {
-      this.updateJob(jobId, {
+      await this.jobService.updateJob(jobId, {
         status: 'FAILED',
         progress: 100,
         message: 'Falha ao processar analise',
@@ -455,6 +462,8 @@ export class AnalysisController {
 
   // ✅ BATCH com cache
   createBatch = catchAsync(async (req: Request & { userId?: string }, res: Response, next: NextFunction) => {
+    await this.ensureJobsReady();
+
     const { conversationIds } = req.body;
     const userId = req.userId!;
 

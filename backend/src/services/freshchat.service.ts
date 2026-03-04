@@ -447,7 +447,6 @@ export class FreshchatService {
       console.error('❌ Erro ao buscar usuários:', error.message);
       if (error.response) {
         console.error('Response status:', error.response.status);
-        console.error('Response data:', error.response.data);
       }
       return [];
     }
@@ -473,14 +472,12 @@ export class FreshchatService {
         .filter((id: string) => id); // Remove undefined/null
 
       console.log(`✅ ${ids.length} conversas encontradas`);
-      console.log('IDs:', ids);
 
       return ids;
     } catch (error: any) {
       console.error('❌ Erro ao buscar conversas:', error.message);
       if (error.response) {
         console.error('Response status:', error.response.status);
-        console.error('Response data:', error.response.data);
       }
       throw new Error(`Erro ao buscar conversas: ${error.message}`);
     }
