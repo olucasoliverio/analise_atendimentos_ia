@@ -41,10 +41,10 @@ export const Login = () => {
         {/* Card */}
         <div className="card-glass p-8 shadow-glass">
           <h2 className="text-xl font-display font-semibold text-surface-900 mb-2 text-center">
-            Bem-vindo de volta
+            Bem-vindo!
           </h2>
           <p className="text-surface-500 text-sm text-center mb-8">
-            Faça login com a conta Google da sua empresa para continuar
+            Faça login com a conta Google da empresa para acessar o painel de análise de atendimentos.
           </p>
 
           {error && (
@@ -72,7 +72,7 @@ export const Login = () => {
           </button>
 
           <p className="text-center text-xs text-surface-400 mt-6">
-            Acesso restrito a colaboradores autorizados
+            Acesso restrito a colaboradores
           </p>
         </div>
       </div>

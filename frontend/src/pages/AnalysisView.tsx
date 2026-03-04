@@ -414,7 +414,7 @@ export const AnalysisView = () => {
         if (analysis.resumo_executivo) {
           pdfSections.push({
             key: 'resumo',
-            title: 'Resumo Executivo',
+            title: 'Resumo',
             lines: buildPdfLines(analysis.resumo_executivo),
           });
         }
@@ -638,13 +638,13 @@ export const AnalysisView = () => {
 
       <div className="max-w-[90rem] mx-auto px-6 py-8 flex items-start gap-8 lg:flex-row-reverse">
 
-        {/* Left Navigation Sidebar - Scroll Spy */}
+        {/* Navigation Sidebar - Scroll Spy */}
         <div className="w-64 shrink-0 sticky top-28 hidden lg:block print-right-column">
 
           <div className="card-glass p-2">
             <div className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-surface-400">Navegação</div>
             <div className="space-y-1">
-              <NavItem id="resumo" icon={FileText} label="Resumo Executivo" />
+              <NavItem id="resumo" icon={FileText} label="Resumo" />
               <NavItem id="linha_tempo" icon={Clock} label="Linha do Tempo" />
               <NavItem id="diagnostico" icon={Target} label="Diagnóstico" />
               <NavItem id="participacao" icon={Users} label="Participação" />
@@ -685,14 +685,14 @@ export const AnalysisView = () => {
           {!analysis._raw_text && (
             <div className="space-y-8 pb-32">
 
-              {/* Resumo Executivo */}
+              {/* Resumo */}
               {analysis.resumo_executivo && (
                 <div id="section-resumo" className="card-glass overflow-hidden relative group" data-pdf-section="true">
                   <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-500"></div>
                   <div className="p-8">
                     <h2 className="text-xl font-display font-bold text-surface-900 mb-4 flex items-center gap-2">
                       <Sparkles className="w-6 h-6 text-brand-500" />
-                      Resumo Executivo
+                      Resumo
                     </h2>
                     <p className="text-surface-700 leading-relaxed text-[15px]">
                       {analysis.resumo_executivo}
