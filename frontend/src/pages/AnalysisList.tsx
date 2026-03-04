@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Trash2, Eye, Hash, Mail, Sparkles, Filter, MoreVertical, Search as SearchIcon, Calendar } from 'lucide-react';
 import { Loading } from '../components/Common/Loading';
 import { analysisService } from '../services/analysis.service';
@@ -8,6 +8,11 @@ import { parseAnalysisText } from '../utils/analysisParser';
 type RiskLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 type RiskFilter = 'ALL' | RiskLevel;
 type PeriodFilter = 'ALL' | 'TODAY' | 'LAST_7_DAYS' | 'LAST_30_DAYS' | 'LAST_90_DAYS' | 'CUSTOM';
+type AnalysisListRouteState = {
+  searchTerm?: string;
+  riskFilter?: RiskFilter;
+  periodFilter?: PeriodFilter;
+};
 
 const normalizeText = (value: string) =>
   value
@@ -175,6 +180,7 @@ export const AnalysisList = () => {
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isPeriodOpen, setIsPeriodOpen] = useState(false);
 
+  const location = useLocation();
   const navigate = useNavigate();
   const filtersRef = useRef<HTMLDivElement | null>(null);
   const periodRef = useRef<HTMLDivElement | null>(null);
@@ -204,6 +210,28 @@ export const AnalysisList = () => {
     document.addEventListener('mousedown', handlePointerDown);
     return () => document.removeEventListener('mousedown', handlePointerDown);
   }, []);
+
+  useEffect(() => {
+    const routeState = location.state as AnalysisListRouteState | null;
+
+    if (!routeState) return;
+
+    if (typeof routeState.searchTerm === 'string') {
+      setSearchTerm(routeState.searchTerm);
+    }
+
+    if (routeState.riskFilter) {
+      setRiskFilter(routeState.riskFilter);
+    }
+
+    if (routeState.periodFilter) {
+      setPeriodFilter(routeState.periodFilter);
+      if (routeState.periodFilter !== 'CUSTOM') {
+        setCustomStartDate('');
+        setCustomEndDate('');
+      }
+    }
+  }, [location.state]);
 
   const loadAnalyses = async () => {
     try {
