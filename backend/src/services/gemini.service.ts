@@ -37,7 +37,7 @@ export class GeminiService {
   }
 
   /**
-   * âœ… OTIMIZADO - Gerar anÃ¡lise com compressÃ£o inteligente
+   * ✅ OTIMIZADO - Gerar análise com compressão inteligente
    */
   async generateAnalysis(
     transcript: string,
@@ -46,28 +46,28 @@ export class GeminiService {
   ): Promise<string> {
     const estimatedTokens = this.estimateTokens(transcript, media.length);
 
-    console.log(`ðŸ“Š Tokens estimados: ${estimatedTokens.toLocaleString()}`);
+    console.log(`📊 Tokens estimados: ${estimatedTokens.toLocaleString()}`);
 
-    // âœ… ESTRATÃ‰GIA 1: Conversa muito longa â†’ resumir
+    // ✅ ESTRATÉGIA 1: Conversa muito longa → resumir
     if (estimatedTokens > 50000) {
-      console.log('âš ï¸ Conversa muito longa! Aplicando compressÃ£o inteligente...');
+      console.log('⚠️ Conversa muito longa! Aplicando compressão inteligente...');
       return await this.generateFromCompressedTranscript(transcript, media, prompt);
     }
 
-    // âœ… ESTRATÃ‰GIA 2: Conversa normal â†’ usar completa
-    console.log('âœ… Conversa dentro do limite, usando completa');
+    // ✅ ESTRATÉGIA 2: Conversa normal → usar completa
+    console.log('✅ Conversa dentro do limite, usando completa');
     return await this.generateFromFullTranscript(transcript, media, prompt);
   }
 
   /**
-   * âœ… NOVO - Gerar anÃ¡lise de conversa comprimida
+   * ✅ NOVO - Gerar análise de conversa comprimida
    */
   private async generateFromCompressedTranscript(
     transcript: string,
     media: ProcessedMedia[],
     prompt: string
   ): Promise<string> {
-    console.log('ðŸ—œï¸ Comprimindo transcriÃ§Ã£o...');
+    console.log('🗜️ Comprimindo transcrição...');
 
     // Extrair mensagens relevantes
     const relevantMessages = this.extractRelevantMessages(transcript);
@@ -76,14 +76,14 @@ export class GeminiService {
     const tokensAfter = this.estimateTokens(compressedTranscript, media.length);
     const reduction = Math.round((1 - tokensAfter / this.estimateTokens(transcript, media.length)) * 100);
 
-    console.log(`âœ… CompressÃ£o: ${reduction}% de reduÃ§Ã£o de tokens`);
-    console.log(`ðŸ“Š Tokens apÃ³s compressÃ£o: ${tokensAfter.toLocaleString()}`);
+    console.log(`✅ Compressão: ${reduction}% de redução de tokens`);
+    console.log(`📊 Tokens após compressão: ${tokensAfter.toLocaleString()}`);
 
     return await this.generateFromFullTranscript(compressedTranscript, media, prompt);
   }
 
   /**
-   * âœ… NOVO - Extrair apenas mensagens relevantes
+   * ✅ NOVO - Extrair apenas mensagens relevantes
    */
   private extractRelevantMessages(transcript: string): Array<{
     timestamp: string;
@@ -110,14 +110,14 @@ export class GeminiService {
       }
     }
 
-    // âœ… Priorizar mensagens importantes
+    // ✅ Priorizar mensagens importantes
     const importantMessages = messages.filter(m => m.isImportant);
     const clientMessages = messages.filter(m => m.actor === 'Cliente' && !m.isImportant);
     const agentMessages = messages.filter(m => m.actor.includes('Agente') && !m.isImportant);
 
-    // âœ… EstratÃ©gia de compressÃ£o:
+    // ✅ Estratégia de compressão:
     // 1. Todas as mensagens importantes
-    // 2. Primeira e Ãºltima mensagem sempre
+    // 2. Primeira e última mensagem sempre
     // 3. Amostra de mensagens do cliente (mais importante)
     // 4. Amostra de mensagens do agente
 
@@ -126,7 +126,7 @@ export class GeminiService {
       ...importantMessages,
       ...this.sampleMessages(clientMessages, 0.7), // 70% das mensagens do cliente
       ...this.sampleMessages(agentMessages, 0.4),  // 40% das mensagens do agente
-      messages[messages.length - 1] // Ãšltima mensagem
+      messages[messages.length - 1] // Última mensagem
     ];
 
     // Remover duplicatas e ordenar por timestamp
@@ -138,42 +138,42 @@ export class GeminiService {
   }
 
   /**
-   * âœ… NOVO - Identificar mensagens importantes
+   * ✅ NOVO - Identificar mensagens importantes
    */
   private isImportantMessage(content: string, fullLine: string): boolean {
     const lowerContent = content.toLowerCase();
     const lowerLine = fullLine.toLowerCase();
 
-    // âœ… Palavras-chave de problema
+    // ✅ Palavras-chave de problema
     const problemKeywords = [
-      'problema', 'erro', 'bug', 'nÃ£o funciona', 'quebrado',
+      'problema', 'erro', 'bug', 'não funciona', 'quebrado',
       'falha', 'defeito', 'travado', 'lento', 'parou',
-      'urgente', 'crÃ­tico', 'importante', 'emergÃªncia'
+      'urgente', 'crítico', 'importante', 'emergência'
     ];
 
-    // âœ… Palavras-chave de emoÃ§Ã£o
+    // ✅ Palavras-chave de emoção
     const emotionKeywords = [
       'insatisfeito', 'frustrado', 'irritado', 'chateado',
-      'cancelar', 'reembolso', 'reclamar', 'pÃ©ssimo',
-      'horrÃ­vel', 'decepcionado'
+      'cancelar', 'reembolso', 'reclamar', 'péssimo',
+      'horrível', 'decepcionado'
     ];
 
-    // âœ… Nota importante (emoji ðŸ””)
-    if (lowerLine.includes('ðŸ””') || lowerLine.includes('nota privada')) {
+    // ✅ Nota importante (emoji 🔔)
+    if (lowerLine.includes('🔔') || lowerLine.includes('nota privada')) {
       return true;
     }
 
-    // âœ… ContÃ©m palavra-chave de problema
+    // ✅ Contém palavra-chave de problema
     if (problemKeywords.some(k => lowerContent.includes(k))) {
       return true;
     }
 
-    // âœ… ContÃ©m palavra-chave de emoÃ§Ã£o
+    // ✅ Contém palavra-chave de emoção
     if (emotionKeywords.some(k => lowerContent.includes(k))) {
       return true;
     }
 
-    // âœ… Mensagem longa (geralmente tem mais contexto)
+    // ✅ Mensagem longa (geralmente tem mais contexto)
     if (content.length > 200) {
       return true;
     }
@@ -200,13 +200,13 @@ export class GeminiService {
   }
 
   /**
-   * Construir transcriÃ§Ã£o comprimida
+   * Construir transcrição comprimida
    */
   private buildCompressedTranscript(messages: any[]): string {
     let transcript = '=== CONVERSA (RESUMIDA) ===\n\n';
 
     transcript += `Total de mensagens na conversa completa: ${messages.length}\n`;
-    transcript += `Mensagens relevantes selecionadas para anÃ¡lise:\n\n`;
+    transcript += `Mensagens relevantes selecionadas para análise:\n\n`;
 
     for (const msg of messages) {
       transcript += `[${msg.timestamp}] ${msg.actor}: ${msg.content}\n`;
@@ -216,7 +216,7 @@ export class GeminiService {
   }
 
   /**
-   * MÃ©todo principal de geraÃ§Ã£o
+   * Método principal de geração
    */
   private async generateFromFullTranscript(
     transcript: string,
@@ -225,12 +225,12 @@ export class GeminiService {
   ): Promise<string> {
     const parts: any[] = [
       { text: prompt },
-      { text: '\n\n### TRANSCRIÃ‡ÃƒO DA CONVERSA:\n\n' + transcript }
+      { text: '\n\n### TRANSCRIÇÃO DA CONVERSA:\n\n' + transcript }
     ];
 
-    // Adicionar mÃ­dias
+    // Adicionar mídias
     if (media.length > 0) {
-      parts.push({ text: '\n\n### MÃDIAS ANEXADAS:\n' });
+      parts.push({ text: '\n\n### MÍDIAS ANEXADAS:\n' });
 
       for (const m of media) {
         parts.push({
@@ -597,4 +597,3 @@ Seja rigoroso com evidência e conservador em inferências.
     return fallback;
   }
 }
-
