@@ -61,9 +61,9 @@ const getDisplayRiskLevel = (analysis: any): RiskLevel => {
 
 const riskLabels: Record<RiskLevel, string> = {
   LOW: 'Baixo',
-  MEDIUM: 'Medio',
+  MEDIUM: 'Médio',
   HIGH: 'Alto',
-  CRITICAL: 'Critico',
+  CRITICAL: 'Crítico',
 };
 
 const riskBarClasses: Record<RiskLevel, string> = {
@@ -124,7 +124,7 @@ export const Dashboard = () => {
         const data = await analysisService.list();
         setAnalyses(data);
       } catch {
-        console.error('Erro ao carregar analises do dashboard');
+        console.error('Erro ao carregar análises do dashboard');
       } finally {
         setLoading(false);
       }
@@ -164,7 +164,7 @@ export const Dashboard = () => {
             Dashboard
           </h1>
           <p className="max-w-2xl text-sm text-surface-500">
-            Acompanhe o volume de analises, a distribuicao de risco e os atalhos para agir rapido no historico.
+            Acompanhe o volume de análises, a distribuição de risco e os atalhos para agir rápido no histórico.
           </p>
         </div>
 
@@ -175,7 +175,7 @@ export const Dashboard = () => {
               <FileBarChart className="h-5 w-5 text-brand-500" />
             </div>
             <p className="text-4xl font-display font-bold text-surface-900">{analysesWithRisk.length}</p>
-            <p className="mt-2 text-sm text-surface-500">Todas as analises disponiveis no seu historico.</p>
+            <p className="mt-2 text-sm text-surface-500">Todas as análises disponíveis no seu histórico.</p>
           </div>
 
           <div className="card-glass border border-surface-200 p-5">
@@ -184,21 +184,21 @@ export const Dashboard = () => {
               <CalendarClock className="h-5 w-5 text-sky-500" />
             </div>
             <p className="text-4xl font-display font-bold text-surface-900">{todayCount}</p>
-            <p className="mt-2 text-sm text-surface-500">Analises criadas desde o inicio do dia.</p>
+            <p className="mt-2 text-sm text-surface-500">Análises criadas desde o início do dia.</p>
           </div>
 
           <div className="card-glass border border-surface-200 p-5">
             <div className="mb-4 flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-surface-400">Ultimos 7 dias</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-surface-400">Últimos 7 dias</span>
               <CalendarClock className="h-5 w-5 text-indigo-500" />
             </div>
             <p className="text-4xl font-display font-bold text-surface-900">{last7DaysCount}</p>
-            <p className="mt-2 text-sm text-surface-500">Recorte rapido para acompanhar a semana.</p>
+            <p className="mt-2 text-sm text-surface-500">Recorte rápido para acompanhar a semana.</p>
           </div>
 
           <div className="card-glass border border-surface-200 p-5">
             <div className="mb-4 flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-surface-400">Risco critico</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-surface-400">Risco crítico</span>
               <Flame className="h-5 w-5 text-red-500" />
             </div>
             <p className="text-4xl font-display font-bold text-surface-900">{criticalCount}</p>
@@ -210,11 +210,11 @@ export const Dashboard = () => {
           <section className="card-glass border border-surface-200 p-6 animate-slide-up" style={{ animationDelay: '100ms' }}>
             <div className="mb-6 flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-display font-semibold text-surface-900">Distribuicao de risco</h2>
-                <p className="mt-1 text-sm text-surface-500">Como o historico esta distribuido entre os niveis de risco.</p>
+                <h2 className="text-xl font-display font-semibold text-surface-900">Distribuição de risco</h2>
+                <p className="mt-1 text-sm text-surface-500">Como o histórico está distribuído entre os níveis de risco.</p>
               </div>
               <button onClick={() => navigate('/analyses')} className="btn btn-secondary bg-white shadow-sm">
-                Ver historico
+                Ver histórico
               </button>
             </div>
 
@@ -224,7 +224,7 @@ export const Dashboard = () => {
                   <div className="mb-2 flex items-center justify-between text-sm">
                     <span className="font-medium text-surface-700">{riskLabels[item.risk]}</span>
                     <span className="text-surface-500">
-                      {item.count} analise{item.count !== 1 && 's'} ({item.percentage}%)
+                      {item.count} análise{item.count !== 1 && 's'} ({item.percentage}%)
                     </span>
                   </div>
                   <div className="h-2.5 rounded-full bg-surface-100">
@@ -248,7 +248,7 @@ export const Dashboard = () => {
               <button onClick={() => navigate('/search')} className="flex items-center justify-between rounded-2xl border border-surface-200 bg-white px-4 py-3 text-left transition-colors hover:border-brand-200 hover:bg-brand-50/40">
                 <span className="flex items-center gap-3 text-sm font-medium text-surface-700">
                   <Plus className="h-4 w-4 text-brand-500" />
-                  Nova analise
+                  Nova análise
                 </span>
                 <ArrowRight className="h-4 w-4 text-surface-400" />
               </button>
@@ -256,7 +256,7 @@ export const Dashboard = () => {
               <button onClick={() => navigate('/analyses')} className="flex items-center justify-between rounded-2xl border border-surface-200 bg-white px-4 py-3 text-left transition-colors hover:border-brand-200 hover:bg-brand-50/40">
                 <span className="flex items-center gap-3 text-sm font-medium text-surface-700">
                   <Search className="h-4 w-4 text-brand-500" />
-                  Ver historico completo
+                  Ver histórico completo
                 </span>
                 <ArrowRight className="h-4 w-4 text-surface-400" />
               </button>
@@ -267,7 +267,7 @@ export const Dashboard = () => {
               >
                 <span className="flex items-center gap-3 text-sm font-medium text-surface-700">
                   <AlertTriangle className="h-4 w-4 text-red-500" />
-                  Somente criticas
+                  Somente críticas
                 </span>
                 <ArrowRight className="h-4 w-4 text-surface-400" />
               </button>
@@ -278,7 +278,7 @@ export const Dashboard = () => {
               >
                 <span className="flex items-center gap-3 text-sm font-medium text-surface-700">
                   <CalendarClock className="h-4 w-4 text-indigo-500" />
-                  Ultimos 7 dias
+                  Últimos 7 dias
                 </span>
                 <ArrowRight className="h-4 w-4 text-surface-400" />
               </button>
@@ -289,8 +289,8 @@ export const Dashboard = () => {
         <section className="card-glass border border-surface-200 p-6 animate-slide-up" style={{ animationDelay: '260ms' }}>
           <div className="mb-6 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-xl font-display font-semibold text-surface-900">Ultimas analises</h2>
-              <p className="mt-1 text-sm text-surface-500">As 5 analises mais recentes para abrir direto.</p>
+              <h2 className="text-xl font-display font-semibold text-surface-900">Últimas análises</h2>
+              <p className="mt-1 text-sm text-surface-500">As 5 análises mais recentes para abrir direto.</p>
             </div>
             <button onClick={() => navigate('/analyses')} className="btn btn-secondary bg-white shadow-sm">
               Ver todas
@@ -299,10 +299,10 @@ export const Dashboard = () => {
 
           {latestAnalyses.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-surface-200 bg-surface-50 px-6 py-12 text-center">
-              <p className="text-lg font-display font-semibold text-surface-900">Nenhuma analise encontrada</p>
-              <p className="mt-2 text-sm text-surface-500">Assim que voce gerar analises, este painel vai destacar os itens recentes.</p>
+              <p className="text-lg font-display font-semibold text-surface-900">Nenhuma análise encontrada</p>
+              <p className="mt-2 text-sm text-surface-500">Assim que você gerar análises, este painel vai destacar os itens recentes.</p>
               <button onClick={() => navigate('/search')} className="btn btn-primary mt-5">
-                Gerar primeira analise
+                Gerar primeira análise
               </button>
             </div>
           ) : (
@@ -315,10 +315,10 @@ export const Dashboard = () => {
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-surface-900">
-                      {analysis.conversation?.customerName || analysis.conversation?.customerEmail || 'Cliente sem identificacao'}
+                      {analysis.conversation?.customerName || analysis.conversation?.customerEmail || 'Cliente sem identificação'}
                     </p>
                     <p className="mt-1 truncate text-xs text-surface-500">
-                      {analysis.conversation?.customerEmail || analysis.conversationId || 'Sem referencia'}
+                      {analysis.conversation?.customerEmail || analysis.conversationId || 'Sem referência'}
                     </p>
                   </div>
 
