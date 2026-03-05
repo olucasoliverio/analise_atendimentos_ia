@@ -1,6 +1,6 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import { z } from 'zod';
-import { AnalysisController } from '../controllers/analisys.controller';
+import { AnalysisController } from '../controllers/analysis.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { validateRequest } from '../middleware/validateRequest';
 
@@ -59,3 +59,4 @@ router.post('/cache/clean', (req, res, next) =>
 );
 
 export default router;
+

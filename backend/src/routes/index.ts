@@ -1,6 +1,6 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import conversationRoutes from './conversation.routes';
-import analysisRoutes from './analisys.routes';
+import analysisRoutes from './analysis.routes';
 
 const router = Router();
 
