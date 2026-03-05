@@ -319,7 +319,7 @@ export const AnalysisList = () => {
           </div>
         </div>
 
-        <div className="mb-8 flex flex-col items-center gap-4 animate-slide-up sm:flex-row" style={{ animationDelay: '100ms' }}>
+        <div className="relative z-30 mb-8 flex flex-col items-center gap-4 animate-slide-up sm:flex-row" style={{ animationDelay: '100ms' }}>
           <div className="relative w-full flex-1">
             <SearchIcon className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-400" />
             <input
@@ -347,7 +347,7 @@ export const AnalysisList = () => {
               </button>
 
               {isFiltersOpen && (
-                <div className="absolute right-0 z-10 mt-2 w-56 rounded-2xl border border-surface-200 bg-white p-3 shadow-soft">
+                <div className="absolute right-0 z-50 mt-2 w-56 rounded-2xl border border-surface-200 bg-white p-3 shadow-soft">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-surface-400">Nível de risco</p>
                   <div className="space-y-2">
                     {riskFilterOptions.map((option) => (
@@ -391,7 +391,7 @@ export const AnalysisList = () => {
               </button>
 
               {isPeriodOpen && (
-                <div className="absolute right-0 z-10 mt-2 w-72 rounded-2xl border border-surface-200 bg-white p-3 shadow-soft">
+                <div className="absolute right-0 z-50 mt-2 w-72 rounded-2xl border border-surface-200 bg-white p-3 shadow-soft">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-surface-400">Período</p>
                   <div className="space-y-2">
                     {periodFilterOptions.map((option) => (
