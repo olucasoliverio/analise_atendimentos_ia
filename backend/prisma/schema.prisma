@@ -63,7 +63,7 @@ model Conversation {
   id                  String   @id
   
   customerId          String
-  customer            Customer @relation("CustomerConversations", fields: [customerId], references: [id], onDelete: Cascade)
+  customer            Customer @relation("CustomerConversations", fields: [customerId], references: [id], onDelete: Restrict)
   
   customerName        String?
   customerEmail       String?
@@ -139,7 +139,7 @@ model Analysis {
   id                     String   @id @default(cuid())
   
   conversationId         String   @unique
-  conversation           Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation           Conversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
   
   // Relação removida do Analysis direto para User
   history                AnalysisHistory[]

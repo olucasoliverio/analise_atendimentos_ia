@@ -429,40 +429,47 @@ export class FreshchatCacheService {
   // ==========================================
 
   async cleanExpiredCache() {
-    const now = new Date();
+    const now = Date.now();
+    const agentCutoff = new Date(now - this.AGENT_CACHE_TTL);
+    const customerCutoff = new Date(now - this.CUSTOMER_CACHE_TTL);
+    const conversationCutoff = new Date(now - this.CONVERSATION_CACHE_TTL);
 
-    const [agents, customers, conversations, messages] = await Promise.all([
-      prisma.agent.deleteMany({
-        where: {
-          lastFetchedAt: {
-            lt: new Date(now.getTime() - this.AGENT_CACHE_TTL)
-          }
-        }
-      }),
+    // Remove somente conversas sem analise para evitar perda de historico.
+    const expiredConversations = await prisma.conversation.findMany({
+      where: {
+        lastFetchedAt: { lt: conversationCutoff },
+        analyses: { none: {} }
+      },
+      select: { id: true }
+    });
+    const expiredConversationIds = expiredConversations.map((c) => c.id);
+
+    const [messages, conversations, customers, agents] = await Promise.all([
+      expiredConversationIds.length > 0
+        ? prisma.message.deleteMany({
+            where: { conversationId: { in: expiredConversationIds } }
+          })
+        : Promise.resolve({ count: 0 }),
+      expiredConversationIds.length > 0
+        ? prisma.conversation.deleteMany({
+            where: { id: { in: expiredConversationIds } }
+          })
+        : Promise.resolve({ count: 0 }),
       prisma.customer.deleteMany({
         where: {
-          lastFetchedAt: {
-            lt: new Date(now.getTime() - this.CUSTOMER_CACHE_TTL)
-          }
+          lastFetchedAt: { lt: customerCutoff },
+          conversations: { none: {} }
         }
       }),
-      prisma.conversation.deleteMany({
+      prisma.agent.deleteMany({
         where: {
-          lastFetchedAt: {
-            lt: new Date(now.getTime() - this.CONVERSATION_CACHE_TTL)
-          }
-        }
-      }),
-      prisma.message.deleteMany({
-        where: {
-          lastFetchedAt: {
-            lt: new Date(now.getTime() - this.MESSAGES_CACHE_TTL)
-          }
+          lastFetchedAt: { lt: agentCutoff },
+          conversations: { none: {} }
         }
       })
     ]);
 
-    console.log('🧹 Cache limpo:', {
+    console.log('Cache limpo (modo seguro):', {
       agents: agents.count,
       customers: customers.count,
       conversations: conversations.count,
