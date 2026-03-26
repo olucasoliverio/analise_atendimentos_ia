@@ -324,12 +324,12 @@ export class GeminiService {
 
     return {
       resumoExecutivo: this.asString(parsed.resumo_executivo || parsed.resumoExecutivo),
-      perfilCliente: parsed.perfil_do_cliente || parsed.perfilDoCliente || {},
-      problemasRecorrentes: parsed.problemas_recorrentes || parsed.problemasRecorrentes || [],
-      conducaoGeral: parsed.analise_de_conducao_geral || parsed.analiseDeConducaoGeral || {},
-      riscoChurn: parsed.risco_de_churn_historico || parsed.riscoDeChurnHistorico || {},
-      recomendacoes: parsed.recomendacoes_estrategicas || parsed.recomendacoesEstrategicas || [],
-      linhaTempo: parsed.linha_do_tempo_eventos_chave || parsed.linhaDoTempoEventosChave || []
+      perfilCliente: parsed.perfil_cliente || parsed.perfil_do_cliente || {},
+      temasRecorrentes: parsed.temas_recorrentes || parsed.problemas_recorrentes || [],
+      conducaoGeral: parsed.analise_conducao_geral || {},
+      saudeConta: parsed.saude_da_conta || parsed.risco_de_churn_historico || {},
+      planoRetencao: parsed.plano_de_retencao || parsed.recomendacoes_estrategicas || [],
+      linhaTempo: parsed.linha_tempo_eventos || parsed.linha_do_tempo_eventos_chave || []
     };
   }
 
@@ -490,59 +490,63 @@ Seja rigoroso com evidência e conservador em inferências.
 
   createHistoryAnalysisPrompt(): string {
     return `
-Você é um Analista Estratégico de CX (Customer Experience) especializado em Análise de Ciclo de Vida do Cliente e Retenção. Sua tarefa é analisar um conjunto de conversas de um mesmo cliente para identificar padrões, evolução de comportamento e problemas crônicos.
+Você é um Estrategista de Sucesso do Cliente (Customer Success) e Analista de CX.
+Sua tarefa é analisar um LOTE de conversas de um mesmo cliente para extrair uma visão macro do relacionamento.
 
-### OBJETIVO DA ANÁLISE
-Identificar por que o cliente entra em contato repetidamente, como o sentimento dele evoluiu ao longo do tempo e se existem falhas sistêmicas no atendimento ou no produto que estão gerando atrito recorrente.
+Diferente de uma auditoria individual, seu foco está em padrões, evolução e saúde da conta a longo prazo.
 
-### ESCOPO
-Analise a sequência de conversas fornecida. Elas estão organizadas cronologicamente ou identificadas por IDs.
+### DISTRIBUIÇÃO DE FOCO
+40% Perfil e Comportamento (quem é este cliente e como ele interage?)
+30% Temas Recorrentes (o que faz ele voltar repetidamente?)
+20% Evolução do Sentimento e Saúde da Conta (o relacionamento está melhorando ou piorando?)
+10% Recomendações Estratégicas (como evitar o churn e resolver os problemas na raiz?)
 
 ### ESTRUTURA DA RESPOSTA (JSON OBRIGATÓRIO)
 {
-  "resumo_executivo": "Visão geral da jornada do cliente nas conversas analisadas (máx 5 linhas).",
-  "perfil_do_cliente": {
-    "comportamento_predominante": "Analítico, Impaciente, Colaborativo, etc.",
-    "evolucao_sentimento": "Descrição de como o humor do cliente mudou da primeira para a última conversa.",
+  "resumo_executivo": "Visão geral da jornada histórica do cliente (máx 5 linhas).",
+  "perfil_cliente": {
+    "comportamento_predominante": "Analítico, Impaciente, Colaborativo, etc. Justifique com o histórico.",
+    "evolucao_sentimento": "Como o humor mudou da primeira para a última conversa (Melhorou | Piorou | Estável + Por que?).",
     "nivel_de_conhecimento": "Leigo | Intermediário | Avançado (sobre o produto)"
   },
-  "problemas_recorrentes": [
+  "temas_recorrentes": [
     {
-      "tema": "Título do problema",
-      "frequencia": "Em quantas conversas apareceu",
-      "descricao": "Resumo do problema recorrente",
-      "evidencia": "Trecho de conversas diferentes que comprovam a recorrência"
+      "tema": "Título do problema recorrente",
+      "frequencia": "Baixa | Média | Alta (focado em quantas conversas apareceu)",
+      "descricao": "Resumo do que se repete e por que não foi resolvido definitivamente ainda.",
+      "impacto": "Impacto no sucesso do cliente"
     }
   ],
-  "analise_de_conducao_geral": {
-    "pontos_fortes": ["O que os agentes fizeram bem no histórico"],
-    "falhas_sistemicas": ["Padrões de erro cometidos por diferentes agentes"],
-    "necessidade_de_handoff": "O cliente foi muito 'jogado' de um lado para o outro? Explique."
+  "analise_conducao_geral": {
+    "pontos_fortes_atendimento": ["O que os agentes costumam acertar com este cliente"],
+    "falhas_sistemicas_ou_atrito": ["Padrões de erro ou atritos recorrentes no atendimento deste cliente"],
+    "necessidade_de_especialista": "O cliente demanda um nível técnico que o N1 atual não supre? SIM/NÃO + Por que?"
   },
-  "risco_de_churn_historico": {
-    "nivel": "LOW | MEDIUM | HIGH | CRITICAL",
-    "justificativa": "Baseado em todo o histórico, qual a probabilidade de perda do cliente?"
+  "saude_da_conta": {
+    "risco_churn": "LOW | MEDIUM | HIGH | CRITICAL",
+    "fidelidade_percebida": "Fiel | Neutro | Em risco",
+    "justificativa_saude": "Análise baseada na frequência de problemas vs satisfação com as soluções"
   },
-  "recomendacoes_estrategicas": [
+  "plano_de_retencao": [
     {
-      "categoria": "Produto | Processo | Relacionamento",
-      "o_que_fazer": "Ação concreta para resolver o problema do cliente em definitivo",
-      "dono": "Liderança | Sucesso do Cliente | Produto | Agente"
+      "acao": "O que fazer para garantir que o cliente fique e tenha sucesso",
+      "dono": "Sucesso do Cliente | Produto | Suporte | Vendas",
+      "prioridade": "ALTA | MEDIA | BAIXA"
     }
   ],
-  "linha_do_tempo_eventos_chave": [
+  "linha_tempo_eventos": [
     {
-      "data_hora": "Data/Hora ou ID da Conversa",
-      "evento": "O que aconteceu de marcante",
-      "impacto": "Como isso afetou a jornada"
+      "periodo": "MM/YYYY ou ID Conversa",
+      "evento": "Fato marcante (Ex: Primeira reclamação de bug, Upgrade, Ameaça de cancelamento)",
+      "resultado": "Como o suporte reagiu e o impacto disso"
     }
   ]
 }
 
 ### REGRAS FINAIS
-- Responda APENAS com JSON.
-- Se houver dados insuficientes para algum campo, use "Dados insuficientes".
-- Seja crítico e estratégico, não apenas descritivo.
+- Responda APENAS com JSON válido.
+- Se houver dados insuficientes, use "Dados insuficientes".
+- Seja crítico e aja como um parceiro estratégico da empresa.
 `;
   }
 

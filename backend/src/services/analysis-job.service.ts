@@ -10,6 +10,7 @@ export interface AnalysisJobRecord {
   status: AnalysisJobStatus;
   progress: number;
   message: string;
+  analysisType?: string;
   analysisId?: string;
   conversationId?: string;
   cached?: boolean;
@@ -27,6 +28,7 @@ type AnalysisJobRow = {
   status: string;
   progress: number;
   message: string;
+  analysis_type: string | null;
   analysis_id: string | null;
   conversation_id: string | null;
   cached: boolean | null;
@@ -49,6 +51,7 @@ export class AnalysisJobService {
         status TEXT NOT NULL,
         progress INTEGER NOT NULL DEFAULT 0,
         message TEXT NOT NULL,
+        analysis_type TEXT DEFAULT 'individual',
         analysis_id TEXT NULL REFERENCES analyses(id) ON DELETE SET NULL,
         conversation_id TEXT NULL,
         cached BOOLEAN NOT NULL DEFAULT FALSE,
@@ -59,6 +62,15 @@ export class AnalysisJobService {
         updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    // Check if column exists, if not add it (for existing databases)
+    try {
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE analysis_jobs ADD COLUMN IF NOT EXISTS analysis_type TEXT DEFAULT 'individual';
+      `);
+    } catch (e) {
+      // Ignore if column already exists or other error
+    }
 
     await prisma.$executeRawUnsafe(`
       CREATE INDEX IF NOT EXISTS analysis_jobs_user_id_idx ON analysis_jobs(user_id);
@@ -78,6 +90,7 @@ export class AnalysisJobService {
     status: AnalysisJobStatus;
     progress: number;
     message: string;
+    analysisType?: string;
   }): Promise<AnalysisJobRecord> {
     const rows = await prisma.$queryRaw<AnalysisJobRow[]>(Prisma.sql`
       INSERT INTO analysis_jobs (
@@ -86,14 +99,16 @@ export class AnalysisJobService {
         conversation_ids,
         status,
         progress,
-        message
+        message,
+        analysis_type
       ) VALUES (
         ${input.id},
         ${input.userId},
         CAST(${JSON.stringify(input.conversationIds)} AS jsonb),
         ${input.status},
         ${input.progress},
-        ${input.message}
+        ${input.message},
+        ${input.analysisType || 'individual'}
       )
       RETURNING
         id,
@@ -102,6 +117,7 @@ export class AnalysisJobService {
         status,
         progress,
         message,
+        analysis_type,
         analysis_id,
         conversation_id,
         cached,
@@ -175,6 +191,7 @@ export class AnalysisJobService {
         status,
         progress,
         message,
+        analysis_type,
         analysis_id,
         conversation_id,
         cached,
@@ -260,6 +277,7 @@ export class AnalysisJobService {
       status: row.status as AnalysisJobStatus,
       progress: row.progress,
       message: row.message,
+      analysisType: row.analysis_type || 'individual',
       analysisId: row.analysis_id || undefined,
       conversationId: row.conversation_id || undefined,
       cached: row.cached ?? false,

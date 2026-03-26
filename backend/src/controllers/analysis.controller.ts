@@ -298,7 +298,10 @@ export class AnalysisController {
     // Salvar no banco a análise com toda a estrutura
     const mainConversation = conversations[0];
     const analysisData: any = {
-      conversationId: mainConversation.id,
+      type: analysisType === 'history' ? 'HISTORY' : 'INDIVIDUAL',
+      conversationId: analysisType === 'history' ? null : mainConversation.id,
+      customerId: mainConversation.customerId,
+      customerEmail: mainConversation.customerEmail,
       fullAnalysisText: analysisText,
       tokensUsed,
       processingTime,
@@ -311,16 +314,16 @@ export class AnalysisController {
     };
 
     if (analysisType === 'history') {
-      analysisData.executiveSummary = parsedData.resumoExecutivo.substring(0, 500);
+      analysisData.executiveSummary = parsedData.resumoExecutivo.substring(0, 1000);
       analysisData.mainProblem = parsedData.perfilCliente;
       analysisData.timeline = parsedData.linhaTempo;
-      analysisData.handoffs = { problemasRecorrentes: parsedData.problemasRecorrentes };
+      analysisData.handoffs = parsedData.temasRecorrentes;
       analysisData.agentConduct = parsedData.conducaoGeral;
-      analysisData.riskLevel = parsedData.riscoChurn.nivel || 'LOW';
-      analysisData.riskChurn = parsedData.riscoChurn.nivel || 'LOW';
-      analysisData.recommendedActions = parsedData.recomendacoes;
+      analysisData.riskLevel = parsedData.saudeConta.risco_churn || 'LOW';
+      analysisData.riskChurn = parsedData.saudeConta.risco_churn || 'LOW';
+      analysisData.recommendedActions = parsedData.planoRetencao;
     } else {
-      analysisData.executiveSummary = parsedData.resumoExecutivo.substring(0, 500) || analysisText.substring(0, 500);
+      analysisData.executiveSummary = parsedData.resumoExecutivo.substring(0, 1000) || analysisText.substring(0, 500);
       analysisData.mainProblem = parsedData.problemaPrincipal;
       analysisData.timeline = parsedData.linhaDoTempo;
       analysisData.handoffs = parsedData.participacaoHandoffs;
@@ -355,11 +358,14 @@ export class AnalysisController {
       orderBy: { viewedAt: 'desc' }
     });
 
-    const analyses = histories.map(h => h.analysis);
+    const analyses = histories.map(h => h.analysis as any);
 
     const formatted = analyses.map(a => ({
       id: a.id,
+      type: a.type,
       conversationId: a.conversationId,
+      customerId: a.customerId,
+      customerEmail: a.customerEmail,
       preview: a.fullAnalysisText?.substring(0, 200) || a.executiveSummary || 'Sem conteudo',
       executiveSummary: a.executiveSummary,
       riskLevel: a.riskLevel,
@@ -368,8 +374,8 @@ export class AnalysisController {
       processingTime: a.processingTime,
       createdAt: a.createdAt,
       conversation: {
-        customerName: a.conversation?.customerName,
-        customerEmail: a.conversation?.customerEmail,
+        customerName: a.conversation?.customerName || a.customerEmail || 'Relatório de Histórico',
+        customerEmail: a.conversation?.customerEmail || a.customerEmail,
         assignedAgentName: a.conversation?.assignedAgentName
       }
     }));
@@ -397,32 +403,37 @@ export class AnalysisController {
       throw new AppError('Analise nao encontrada', 404);
     }
 
+    const analysis = history.analysis as any;
+
     res.json({
-      id: history.analysis.id,
-      conversationId: history.analysis.conversationId,
-      analysisText: history.analysis.fullAnalysisText || history.analysis.executiveSummary,
-      fullAnalysisText: history.analysis.fullAnalysisText,
-      executiveSummary: history.analysis.executiveSummary,
-      riskLevel: history.analysis.riskLevel,
+      id: analysis.id,
+      type: analysis.type,
+      conversationId: analysis.conversationId,
+      customerId: analysis.customerId,
+      customerEmail: analysis.customerEmail,
+      analysisText: analysis.fullAnalysisText || analysis.executiveSummary,
+      fullAnalysisText: analysis.fullAnalysisText,
+      executiveSummary: analysis.executiveSummary,
+      riskLevel: analysis.riskLevel,
 
       // Enviando todos os novos campos para o Frontend!
-      mainProblem: history.analysis.mainProblem,
-      timeline: history.analysis.timeline,
-      handoffs: history.analysis.handoffs,
-      agentConduct: history.analysis.agentConduct,
-      recommendedActions: history.analysis.recommendedActions,
-      keyEvidences: history.analysis.keyEvidences,
+      mainProblem: analysis.mainProblem,
+      timeline: analysis.timeline,
+      handoffs: analysis.handoffs,
+      agentConduct: analysis.agentConduct,
+      recommendedActions: analysis.recommendedActions,
+      keyEvidences: analysis.keyEvidences,
 
       metadata: {
-        tokensUsed: history.analysis.tokensUsed,
-        mediaProcessed: history.analysis.mediaProcessed,
-        processingTimeMs: history.analysis.processingTime
+        tokensUsed: analysis.tokensUsed,
+        mediaProcessed: analysis.mediaProcessed,
+        processingTimeMs: analysis.processingTime
       },
       conversation: {
-        customerName: history.analysis.conversation?.customerName,
-        customerEmail: history.analysis.conversation?.customerEmail,
-        assignedAgentName: history.analysis.conversation?.assignedAgentName,
-        status: history.analysis.conversation?.status
+        customerName: analysis.conversation?.customerName,
+        customerEmail: analysis.conversation?.customerEmail,
+        assignedAgentName: analysis.conversation?.assignedAgentName,
+        status: analysis.conversation?.status
       }
     });
   });

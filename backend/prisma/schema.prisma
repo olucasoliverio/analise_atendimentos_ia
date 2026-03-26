@@ -79,7 +79,7 @@ model Conversation {
   
   createdAt           DateTime
   updatedAt           DateTime
-  lastFetchedAt       DateTime @default(now())
+  lastFetchedAt     DateTime @default(now())
   
   messageCount        Int?
   customerMessageCount Int?
@@ -137,9 +137,13 @@ model Message {
 
 model Analysis {
   id                     String   @id @default(cuid())
+  type                   AnalysisType @default(INDIVIDUAL)
   
-  conversationId         String   @unique
-  conversation           Conversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  conversationId         String?  @unique
+  conversation           Conversation? @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  
+  customerId             String?
+  customerEmail          String?
   
   // Relação removida do Analysis direto para User
   history                AnalysisHistory[]
@@ -168,8 +172,16 @@ model Analysis {
   updatedAt              DateTime @updatedAt
   
   @@index([conversationId])
+  @@index([customerId])
+  @@index([customerEmail])
+  @@index([type])
   @@index([riskLevel])
   @@map("analyses")
+}
+
+enum AnalysisType {
+  INDIVIDUAL
+  HISTORY
 }
 
 // ==========================================

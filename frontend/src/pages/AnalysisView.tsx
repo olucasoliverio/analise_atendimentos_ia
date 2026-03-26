@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import {
@@ -37,6 +37,7 @@ export const AnalysisView = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [analysis, setAnalysis] = useState<StructuredAnalysis | null>(null);
+  const [analysisType, setAnalysisType] = useState<'INDIVIDUAL' | 'HISTORY'>('INDIVIDUAL');
   const [conversationInfo, setConversationInfo] = useState<AnalysisConversationInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -56,9 +57,13 @@ export const AnalysisView = () => {
 
         setConversationInfo({
           conversationId: data.conversationId,
-          customerName: data.conversation?.customerName,
-          customerEmail: data.conversation?.customerEmail
+          customerName: data.conversation?.customerName || data.customerEmail || 'Cliente',
+          customerEmail: data.conversation?.customerEmail || data.customerEmail
         });
+        
+        if (data.type) {
+          setAnalysisType(data.type);
+        }
 
         const parsed = parseAnalysisText(text);
         setAnalysis(parsed);
@@ -137,6 +142,7 @@ export const AnalysisView = () => {
       .replace(/_/g, ' ')
       .replace(/\b\w/g, (char) => char.toUpperCase());
 
+  const isHistory = analysisType === 'HISTORY';
   const customerDisplayName = conversationInfo?.customerName || conversationInfo?.customerEmail || 'Cliente';
 
   const formatValue = (value: unknown): React.ReactNode => {
@@ -644,14 +650,14 @@ export const AnalysisView = () => {
           <div className="card-glass p-2">
             <div className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-surface-400">Navegação</div>
             <div className="space-y-1">
-              <NavItem id="resumo" icon={FileText} label="Resumo" />
-              <NavItem id="linha_tempo" icon={Clock} label="Linha do Tempo" />
-              <NavItem id="diagnostico" icon={Target} label="Diagnóstico" />
-              <NavItem id="participacao" icon={Users} label="Participação" />
-              <NavItem id="conducao" icon={TrendingUp} label="Condução" />
+              <NavItem id="resumo" icon={FileText} label={isHistory ? "Visão Geral Histórica" : "Resumo"} />
+              <NavItem id="linha_tempo" icon={Clock} label={isHistory ? "Eventos Marcantes" : "Linha do Tempo"} />
+              <NavItem id="diagnostico" icon={Target} label={isHistory ? "Perfil do Cliente" : "Diagnóstico"} />
+              <NavItem id="participacao" icon={Users} label={isHistory ? "Problemas Recorrentes" : "Participação"} />
+              <NavItem id="conducao" icon={TrendingUp} label={isHistory ? "Análise de Qualidade" : "Condução"} />
               <NavItem id="avaliacao" icon={CheckSquare} label="Avaliação (QA)" />
-              <NavItem id="risco" icon={ShieldAlert} label="Análise de Risco" />
-              <NavItem id="acoes" icon={ListOrdered} label="Ações Recomendadas" />
+              <NavItem id="risco" icon={ShieldAlert} label={isHistory ? "Saúde da Conta" : "Análise de Risco"} />
+              <NavItem id="acoes" icon={ListOrdered} label={isHistory ? "Plano de Retenção" : "Ações Recomendadas"} />
               <NavItem id="evidencias" icon={Paperclip} label="Evidências" />
             </div>
           </div>
@@ -692,7 +698,7 @@ export const AnalysisView = () => {
                   <div className="p-8">
                     <h2 className="text-xl font-display font-bold text-surface-900 mb-4 flex items-center gap-2">
                       <Sparkles className="w-6 h-6 text-brand-500" />
-                      Resumo
+                      {isHistory ? "Visão Geral Histórica" : "Resumo"}
                     </h2>
                     <p className="text-surface-700 leading-relaxed text-[15px]">
                       {analysis.resumo_executivo}
@@ -706,7 +712,7 @@ export const AnalysisView = () => {
                 <div id="section-linha_tempo" className="card-glass p-8 scroll-mt-28" data-pdf-section="true">
                   <h2 className="text-xl font-display font-bold text-surface-900 mb-6 flex items-center gap-2">
                     <Clock className="w-6 h-6 text-indigo-500" />
-                    Linha do Tempo
+                    {isHistory ? "Eventos Marcantes no Relacionamento" : "Linha do Tempo"}
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {Object.entries(analysis.linha_do_tempo).map(([key, val]) => (
@@ -724,7 +730,7 @@ export const AnalysisView = () => {
                 <div id="section-diagnostico" className="card-glass p-8 scroll-mt-28" data-pdf-section="true">
                   <h2 className="text-xl font-display font-bold text-surface-900 mb-6 flex items-center gap-2">
                     <Target className="w-6 h-6 text-rose-500" />
-                    Diagnóstico do Caso
+                    {isHistory ? "Perfil e Comportamento do Cliente" : "Diagnóstico do Caso"}
                   </h2>
                   <div className="space-y-6 animate-slide-up">
                     {Object.entries(problema).map(([key, val]) => (
@@ -742,7 +748,7 @@ export const AnalysisView = () => {
                 <div id="section-participacao" className="card-glass p-8 scroll-mt-28" data-pdf-section="true">
                   <h2 className="text-xl font-display font-bold text-surface-900 mb-6 flex items-center gap-2">
                     <Users className="w-6 h-6 text-sky-500" />
-                    Participação e Handoffs
+                    {isHistory ? "Padrões e Problemas Recorrentes" : "Participação e Handoffs"}
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {Object.entries(participacao).map(([key, val]) => (
@@ -760,7 +766,7 @@ export const AnalysisView = () => {
                 <div id="section-conducao" className="card-glass p-8 scroll-mt-28" data-pdf-section="true">
                   <h2 className="text-xl font-display font-bold text-surface-900 mb-6 flex items-center gap-2">
                     <TrendingUp className="w-6 h-6 text-teal-500" />
-                    Condução do Atendimento
+                    {isHistory ? "Análise de Qualidade de Atendimento" : "Condução do Atendimento"}
                   </h2>
                   <div className="space-y-5">
                     {Object.entries(conducao).map(([key, val]) => (
@@ -827,7 +833,7 @@ export const AnalysisView = () => {
                 <div id="section-risco" className="card-glass p-8 scroll-mt-28" data-pdf-section="true">
                   <h2 className="text-xl font-display font-bold text-surface-900 mb-6 flex items-center gap-2">
                     <ShieldAlert className="w-6 h-6 text-red-500" />
-                    Análise de Risco
+                    {isHistory ? "Saúde da Conta e Risco de Churn" : "Análise de Risco"}
                   </h2>
 
                   {(risco.criticidade_geral || risco.classificacao) && (
@@ -873,7 +879,7 @@ export const AnalysisView = () => {
                 <div id="section-acoes" className="card-glass p-8 scroll-mt-28" data-pdf-section="true">
                   <h2 className="text-xl font-display font-bold text-surface-900 mb-6 flex items-center gap-2">
                     <ListOrdered className="w-6 h-6 text-emerald-500" />
-                    Planos de Ação Recomendados
+                    {isHistory ? "Plano Estratégico de Retenção" : "Planos de Ação Recomendados"}
                   </h2>
                   <div className="space-y-4">
                     {acoesRecomendadas.map((acao: any, idx: number) => (
