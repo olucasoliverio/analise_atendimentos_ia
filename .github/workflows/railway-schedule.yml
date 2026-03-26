@@ -1,0 +1,29 @@
+name: Control Railway Backend
+
+on:
+  schedule:
+    - cron: "0 10 * * *"  # 07:00 Brasil
+    - cron: "0 22 * * *"  # 19:00 Brasil
+
+jobs:
+  control:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Login Railway
+        run: railway login --token ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Start or Stop Service
+        run: |
+          HOUR=$(date -u +%H)
+
+          if [ "$HOUR" = "10" ]; then
+            echo "Ligando backend..."
+            railway scale 1
+          else
+            echo "Desligando backend..."
+            railway scale 0
+          fi
