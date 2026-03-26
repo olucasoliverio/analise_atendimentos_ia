@@ -183,7 +183,7 @@ export class AnalysisController {
         progress: 100,
         message: cached ? 'Analise retornada do cache' : 'Analise finalizada',
         analysisId: analysis.id,
-        conversationId: analysis.conversationId,
+        conversationId: analysis.conversationId ?? undefined,
         cached,
         finishedAt: new Date()
       });
