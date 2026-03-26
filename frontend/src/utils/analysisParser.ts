@@ -18,16 +18,16 @@ export interface ParsedAnalysisText {
 const normalizeAnalysisKeys = (parsed: ParsedAnalysisText): ParsedAnalysisText => ({
   ...parsed,
   resumo_executivo: parsed.resumo_executivo ?? parsed.resumoExecutivo,
-  linha_do_tempo: parsed.linha_do_tempo ?? parsed.linhaDoTempo,
-  participacao_handoffs: parsed.participacao_handoffs ?? parsed.participacaoHandoffs,
-  problema_principal: parsed.problema_principal ?? parsed.problemaPrincipal,
-  conducao_atendimento: parsed.conducao_atendimento ?? parsed.conducaoAtendimento,
+  linha_do_tempo: parsed.linha_do_tempo ?? parsed.linhaDoTempo ?? parsed.linha_do_tempo_eventos_chave ?? parsed.linhaDoTempoEventosChave,
+  participacao_handoffs: parsed.participacao_handoffs ?? parsed.participacaoHandoffs ?? parsed.problemas_recorrentes ?? parsed.problemasRecorrentes,
+  problema_principal: parsed.problema_principal ?? parsed.problemaPrincipal ?? parsed.perfil_do_cliente ?? parsed.perfilDoCliente,
+  conducao_atendimento: parsed.conducao_atendimento ?? parsed.conducaoAtendimento ?? parsed.analise_de_conducao_geral ?? parsed.analiseDeConducaoGeral,
   avaliacao_padronizada: parsed.avaliacao_padronizada ?? parsed.avaliacaoPadronizada,
-  analise_risco: parsed.analise_risco ?? parsed.analiseRisco,
+  analise_risco: parsed.analise_risco ?? parsed.analiseRisco ?? parsed.risco_de_churn_historico ?? parsed.riscoDeChurnHistorico,
   risco_operacional: parsed.risco_operacional ?? parsed.riscoOperacional,
   evidencias_chave: parsed.evidencias_chave ?? parsed.evidenciasChave,
   anexos_analisados: parsed.anexos_analisados ?? parsed.anexosAnalisados,
-  acoes_recomendadas: parsed.acoes_recomendadas ?? parsed.acoesRecomendadas,
+  acoes_recomendadas: parsed.acoes_recomendadas ?? parsed.acoesRecomendadas ?? parsed.recomendacoes_estrategicas ?? parsed.recomendacoesEstrategicas,
   notas_privadas: parsed.notas_privadas ?? parsed.notasPrivadas ?? parsed.notas_privadas_acoes_criticas
 });
 

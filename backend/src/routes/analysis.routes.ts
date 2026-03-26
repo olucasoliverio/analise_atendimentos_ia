@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { z } from 'zod';
 import { AnalysisController } from '../controllers/analysis.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
@@ -10,8 +10,14 @@ const maxConversationsPerJob = Number(process.env.ANALYSIS_MAX_CONVERSATIONS_PER
 
 const createAnalysisSchema = z.object({
   conversationIds: z.array(z.string().trim().min(1, 'ID de conversa invalido'))
-    .min(1, 'Forneca pelo menos um ID de conversa')
-    .max(maxConversationsPerJob, `Maximo de ${maxConversationsPerJob} conversas por analise`)
+    .min(1, 'Forneca pelo menos um ID de conversa'),
+  analysisType: z.enum(['individual', 'history']).optional().default('individual')
+}).refine((data) => {
+  const limit = data.analysisType === 'history' ? 50 : maxConversationsPerJob;
+  return data.conversationIds.length <= limit;
+}, {
+  message: `Limite de conversas excedido para este tipo de analise`,
+  path: ['conversationIds']
 });
 
 const createBatchSchema = z.object({

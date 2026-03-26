@@ -318,6 +318,21 @@ export class GeminiService {
     };
   }
 
+  parseHistoryAnalysis(rawResponse: string): any {
+    const jsonPayload = this.extractJsonPayload(rawResponse);
+    const parsed = JSON.parse(jsonPayload) as Record<string, any>;
+
+    return {
+      resumoExecutivo: this.asString(parsed.resumo_executivo || parsed.resumoExecutivo),
+      perfilCliente: parsed.perfil_do_cliente || parsed.perfilDoCliente || {},
+      problemasRecorrentes: parsed.problemas_recorrentes || parsed.problemasRecorrentes || [],
+      conducaoGeral: parsed.analise_de_conducao_geral || parsed.analiseDeConducaoGeral || {},
+      riscoChurn: parsed.risco_de_churn_historico || parsed.riscoDeChurnHistorico || {},
+      recomendacoes: parsed.recomendacoes_estrategicas || parsed.recomendacoesEstrategicas || [],
+      linhaTempo: parsed.linha_do_tempo_eventos_chave || parsed.linhaDoTempoEventosChave || []
+    };
+  }
+
   formatStructuredAnalysisMarkdown(data: StructuredAnalysisResult): string {
     const risco = data.riscoOperacional;
 
@@ -355,6 +370,7 @@ export class GeminiService {
       actionLines
     ].join('\n');
   }
+
   createAnalysisPrompt(): string {
     return `
 Você é um Analista Sênior de Qualidade em Suporte Técnico (CX/CS), com foco em diagnóstico do caso, evidências objetivas, redução de recontato e prevenção de churn.
@@ -403,7 +419,7 @@ ESTRUTURA JSON OBRIGATÓRIA:
 "tempo_ate_escalonamento": "X minutos/horas + Para quem foi escalado ou Não escalado",
 "passou_por_n2": "SIM ou NÃO",
 "status_final": "Resolvido | Parcialmente resolvido | Escalado | Aguardando cliente",
-"tempo_total": "X dias, Y horas e Z minutos"
+"tempo_total": "X dias, Z minutos"
 },
 "participacao_handoffs": {
 "total_agentes": 0,
@@ -469,6 +485,64 @@ Se não houver ação crítica: "Nenhuma ação crítica registrada".
 Caso tenha sido direcionado um atendimento, mas esteja como "CONT", não considere como handoff para fins de análise, a menos que haja evidência clara de que o cliente foi instruído a contatar outro agente ou canal.
 Máximo de 6 ações recomendadas.
 Seja rigoroso com evidência e conservador em inferências.
+`;
+  }
+
+  createHistoryAnalysisPrompt(): string {
+    return `
+Você é um Analista Estratégico de CX (Customer Experience) especializado em Análise de Ciclo de Vida do Cliente e Retenção. Sua tarefa é analisar um conjunto de conversas de um mesmo cliente para identificar padrões, evolução de comportamento e problemas crônicos.
+
+### OBJETIVO DA ANÁLISE
+Identificar por que o cliente entra em contato repetidamente, como o sentimento dele evoluiu ao longo do tempo e se existem falhas sistêmicas no atendimento ou no produto que estão gerando atrito recorrente.
+
+### ESCOPO
+Analise a sequência de conversas fornecida. Elas estão organizadas cronologicamente ou identificadas por IDs.
+
+### ESTRUTURA DA RESPOSTA (JSON OBRIGATÓRIO)
+{
+  "resumo_executivo": "Visão geral da jornada do cliente nas conversas analisadas (máx 5 linhas).",
+  "perfil_do_cliente": {
+    "comportamento_predominante": "Analítico, Impaciente, Colaborativo, etc.",
+    "evolucao_sentimento": "Descrição de como o humor do cliente mudou da primeira para a última conversa.",
+    "nivel_de_conhecimento": "Leigo | Intermediário | Avançado (sobre o produto)"
+  },
+  "problemas_recorrentes": [
+    {
+      "tema": "Título do problema",
+      "frequencia": "Em quantas conversas apareceu",
+      "descricao": "Resumo do problema recorrente",
+      "evidencia": "Trecho de conversas diferentes que comprovam a recorrência"
+    }
+  ],
+  "analise_de_conducao_geral": {
+    "pontos_fortes": ["O que os agentes fizeram bem no histórico"],
+    "falhas_sistemicas": ["Padrões de erro cometidos por diferentes agentes"],
+    "necessidade_de_handoff": "O cliente foi muito 'jogado' de um lado para o outro? Explique."
+  },
+  "risco_de_churn_historico": {
+    "nivel": "LOW | MEDIUM | HIGH | CRITICAL",
+    "justificativa": "Baseado em todo o histórico, qual a probabilidade de perda do cliente?"
+  },
+  "recomendacoes_estrategicas": [
+    {
+      "categoria": "Produto | Processo | Relacionamento",
+      "o_que_fazer": "Ação concreta para resolver o problema do cliente em definitivo",
+      "dono": "Liderança | Sucesso do Cliente | Produto | Agente"
+    }
+  ],
+  "linha_do_tempo_eventos_chave": [
+    {
+      "data_hora": "Data/Hora ou ID da Conversa",
+      "evento": "O que aconteceu de marcante",
+      "impacto": "Como isso afetou a jornada"
+    }
+  ]
+}
+
+### REGRAS FINAIS
+- Responda APENAS com JSON.
+- Se houver dados insuficientes para algum campo, use "Dados insuficientes".
+- Seja crítico e estratégico, não apenas descritivo.
 `;
   }
 

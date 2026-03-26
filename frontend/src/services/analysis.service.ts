@@ -19,7 +19,7 @@ interface AnalysisJobStatusResponse {
 }
 
 export const analysisService = {
-  async createJob(data: { conversationIds: string[] }): Promise<AnalysisJobResponse> {
+  async createJob(data: { conversationIds: string[], analysisType?: 'individual' | 'history' }): Promise<AnalysisJobResponse> {
     const { data: result } = await api.post('/analyses', data);
     return result;
   },
@@ -49,7 +49,7 @@ export const analysisService = {
     throw new Error('Tempo limite excedido aguardando analise');
   },
 
-  async create(data: { conversationIds: string[] }) {
+  async create(data: { conversationIds: string[], analysisType?: 'individual' | 'history' }) {
     const job = await analysisService.createJob(data);
     const completed = await analysisService.waitForJob(job.jobId);
     return analysisService.getById(completed.analysisId!);

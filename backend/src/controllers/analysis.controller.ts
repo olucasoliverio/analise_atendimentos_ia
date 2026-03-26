@@ -51,7 +51,7 @@ export class AnalysisController {
   create = catchAsync(async (req: Request & { userId?: string }, res: Response, next: NextFunction) => {
     await this.ensureJobsReady();
 
-    const { conversationIds: rawConversationIds } = req.body;
+    const { conversationIds: rawConversationIds, analysisType = 'individual' } = req.body;
     const userId = req.userId!;
     const conversationIds = this.normalizeConversationIds(rawConversationIds);
 
@@ -59,9 +59,10 @@ export class AnalysisController {
       throw new AppError('Forneca pelo menos um ID de conversa valido', 400);
     }
 
-    if (conversationIds.length > this.MAX_CONVERSATIONS_PER_JOB) {
+    const limit = analysisType === 'history' ? 50 : this.MAX_CONVERSATIONS_PER_JOB;
+    if (conversationIds.length > limit) {
       throw new AppError(
-        `Cada analise aceita no maximo ${this.MAX_CONVERSATIONS_PER_JOB} conversas por requisicao`,
+        `Este tipo de analise aceita no maximo ${limit} conversas por requisicao`,
         400
       );
     }
@@ -89,8 +90,9 @@ export class AnalysisController {
       conversationIds,
       status: 'QUEUED',
       progress: 0,
-      message: 'Analise enfileirada'
-    });
+      message: 'Analise enfileirada',
+      analysisType // Passando o tipo para o job
+    } as any);
 
     void this.processJob(jobId);
 
@@ -167,9 +169,14 @@ export class AnalysisController {
     if (!job) return;
 
     try {
-      const { analysis, cached } = await this.runAnalysis(job.conversationIds, job.userId, (progress, message) => {
-        return this.jobService.updateJob(jobId, { progress, message });
-      });
+      const { analysis, cached } = await this.runAnalysis(
+        job.conversationIds,
+        job.userId,
+        (job as any).analysisType || 'individual',
+        (progress, message) => {
+          return this.jobService.updateJob(jobId, { progress, message });
+        }
+      );
 
       await this.jobService.updateJob(jobId, {
         status: 'COMPLETED',
@@ -194,9 +201,10 @@ export class AnalysisController {
   private async runAnalysis(
     conversationIds: string[],
     userId: string,
+    analysisType: 'individual' | 'history' = 'individual',
     onProgress?: (progress: number, message: string) => void
   ) {
-    if (conversationIds.length === 1) {
+    if (conversationIds.length === 1 && analysisType === 'individual') {
       const existing = await prisma.analysis.findFirst({
         where: {
           conversationId: conversationIds[0]
@@ -253,7 +261,7 @@ export class AnalysisController {
         const actor =
           msg.actorType === 'USER' ? 'Cliente' :
             msg.messageType === 'PRIVATE' ? 'Nota Privada' :
-              msg.actorName || 'Agente'; // ✅ Nome já vem do cache
+              msg.actorName || 'Agente'; 
 
         fullTranscript += `[${time}] ${actor}${msg.isImportantNote ? ' [IMPORTANT]' : ''}: ${msg.content}\n`;
 
@@ -267,7 +275,10 @@ export class AnalysisController {
     const processedMedia = await mediaService.processMediaForAI(allMediaUrls);
 
     onProgress?.(70, 'Gerando analise com IA...');
-    const prompt = geminiService.createAnalysisPrompt();
+    const prompt = analysisType === 'history' 
+      ? geminiService.createHistoryAnalysisPrompt()
+      : geminiService.createAnalysisPrompt();
+      
     const analysisText = await geminiService.generateAnalysis(
       fullTranscript,
       processedMedia,
@@ -280,41 +291,50 @@ export class AnalysisController {
     onProgress?.(85, 'Salvando resultado...');
 
     // Parse do texto para extrair as variáveis do JSON gerado
-    const parsedData = geminiService.parseStructuredAnalysis(analysisText);
+    const parsedData = analysisType === 'history'
+      ? geminiService.parseHistoryAnalysis(analysisText)
+      : geminiService.parseStructuredAnalysis(analysisText);
 
     // Salvar no banco a análise com toda a estrutura
     const mainConversation = conversations[0];
-    const analysis = await prisma.analysis.create({
-      data: {
-        conversationId: mainConversation.id,
-        executiveSummary: parsedData.resumoExecutivo.substring(0, 500) || analysisText.substring(0, 500),
-        fullAnalysisText: analysisText,
-
-        mainProblem: parsedData.problemaPrincipal as any,
-        timeline: parsedData.linhaDoTempo as any,
-        handoffs: parsedData.participacaoHandoffs as any,
-        agentConduct: parsedData.conducaoAtendimento as any,
-
-        riskLevel: parsedData.riscoOperacional.criticidadeGeral,
-        riskRecontact: parsedData.riscoOperacional.recontato.nivel,
-        riskDissatisfaction: parsedData.riscoOperacional.insatisfacao.nivel,
-        riskChurn: parsedData.riscoOperacional.churn.nivel,
-
-        recommendedActions: parsedData.acoesRecomendadas as any,
-        keyEvidences: parsedData.evidenciasChave as any,
-
-        tokensUsed,
-        processingTime,
-        mediaProcessed: processedMedia.length,
-
-        history: {
-          create: {
-            user: {
-              connect: { id: userId }
-            }
-          }
+    const analysisData: any = {
+      conversationId: mainConversation.id,
+      fullAnalysisText: analysisText,
+      tokensUsed,
+      processingTime,
+      mediaProcessed: processedMedia.length,
+      history: {
+        create: {
+          user: { connect: { id: userId } }
         }
       }
+    };
+
+    if (analysisType === 'history') {
+      analysisData.executiveSummary = parsedData.resumoExecutivo.substring(0, 500);
+      analysisData.mainProblem = parsedData.perfilCliente;
+      analysisData.timeline = parsedData.linhaTempo;
+      analysisData.handoffs = { problemasRecorrentes: parsedData.problemasRecorrentes };
+      analysisData.agentConduct = parsedData.conducaoGeral;
+      analysisData.riskLevel = parsedData.riscoChurn.nivel || 'LOW';
+      analysisData.riskChurn = parsedData.riscoChurn.nivel || 'LOW';
+      analysisData.recommendedActions = parsedData.recomendacoes;
+    } else {
+      analysisData.executiveSummary = parsedData.resumoExecutivo.substring(0, 500) || analysisText.substring(0, 500);
+      analysisData.mainProblem = parsedData.problemaPrincipal;
+      analysisData.timeline = parsedData.linhaDoTempo;
+      analysisData.handoffs = parsedData.participacaoHandoffs;
+      analysisData.agentConduct = parsedData.conducaoAtendimento;
+      analysisData.riskLevel = parsedData.riscoOperacional.criticidadeGeral;
+      analysisData.riskRecontact = parsedData.riscoOperacional.recontato.nivel;
+      analysisData.riskDissatisfaction = parsedData.riscoOperacional.insatisfacao.nivel;
+      analysisData.riskChurn = parsedData.riscoOperacional.churn.nivel;
+      analysisData.recommendedActions = parsedData.acoesRecomendadas;
+      analysisData.keyEvidences = parsedData.evidenciasChave;
+    }
+
+    const analysis = await prisma.analysis.create({
+      data: analysisData
     });
 
     onProgress?.(100, 'Concluído!');
@@ -411,11 +431,6 @@ export class AnalysisController {
     const { id } = req.params;
     const userId = req.userId!;
 
-    // Deletar a relação do Histórico.
-    // Como a relação History -> Analysis tem onDelete: Cascade,
-    // SE for o último user atrelado àquela análise, deixamos a análise lá ou a deletamos?
-    // Nesse caso de histórico, só vamos remover do painel dele:
-
     const history = await prisma.analysisHistory.findUnique({
       where: { userId_analysisId: { userId, analysisId: id } }
     });
@@ -438,7 +453,6 @@ export class AnalysisController {
     const { id } = req.params;
     const userId = req.userId!;
 
-    // Encontrar o histórico
     const history = await prisma.analysisHistory.findFirst({
       where: { analysisId: id, userId },
       include: { analysis: true }
@@ -450,8 +464,6 @@ export class AnalysisController {
 
     const conversationId = history.analysis.conversationId;
 
-    // Removemos do histórico dele, E deletamos a análise do sistema para forçar reconexão.
-    // Como Análise Cascade Histórico, ao deletar a análise, apaga dos históricos também.
     await prisma.analysis.delete({ where: { id } });
 
     res.json({
@@ -460,7 +472,6 @@ export class AnalysisController {
     });
   });
 
-  // ✅ BATCH com cache
   createBatch = catchAsync(async (req: Request & { userId?: string }, res: Response, next: NextFunction) => {
     await this.ensureJobsReady();
 
@@ -496,7 +507,6 @@ export class AnalysisController {
           continue;
         }
 
-        // ✅ USAR CACHE SERVICE
         const conversation = await cacheService.getConversation(convId);
         const messages = await cacheService.getMessages(convId);
 
@@ -555,7 +565,6 @@ export class AnalysisController {
     const tokensUsed = geminiService.estimateTokens(fullTranscript, processedMedia.length);
     const processingTime = Date.now() - startTime;
 
-    // Parse JSON
     const parsedData = geminiService.parseStructuredAnalysis(analysisText);
 
     return await prisma.analysis.create({
@@ -565,9 +574,9 @@ export class AnalysisController {
         fullAnalysisText: analysisText,
 
         mainProblem: parsedData.problemaPrincipal as any,
-        timeline: parsedData.linhaDoTempo as any,
-        handoffs: parsedData.participacaoHandoffs as any,
-        agentConduct: parsedData.conducaoAtendimento as any,
+        timeline: parsedData.linhaDoTempo,
+        handoffs: parsedData.participacaoHandoffs,
+        agentConduct: parsedData.conducaoAtendimento,
 
         riskLevel: parsedData.riscoOperacional.criticidadeGeral,
         riskRecontact: parsedData.riscoOperacional.recontato.nivel,
@@ -595,7 +604,6 @@ export class AnalysisController {
       return { error: 'Nenhuma analise bem-sucedida' };
     }
 
-    // Buscar análises consolidadas a partir do histórico
     const histories = await prisma.analysisHistory.findMany({
       where: {
         analysisId: { in: successfulAnalyses.map(r => r.analysisId) },
@@ -647,7 +655,6 @@ export class AnalysisController {
     };
   }
 
-  // ✅ Endpoints de cache
   getCacheStats = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
     const stats = await cacheService.getCacheStats();
     res.json(stats);
