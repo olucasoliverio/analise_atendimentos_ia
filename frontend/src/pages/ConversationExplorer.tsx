@@ -246,8 +246,8 @@ export const ConversationExplorer = () => {
       <div className="flex items-center justify-between mb-8 flex-shrink-0">
         <div>
           <h1 className="text-3xl font-extrabold text-surface-900 tracking-tight flex items-center gap-3">
-            <span className="bg-gradient-to-br from-brand-600 to-brand-800 bg-clip-text text-transparent">Explorer</span>
-            <span className="px-2 py-0.5 bg-brand-50 text-brand-700 text-[10px] uppercase tracking-widest rounded-full border border-brand-100">AI Powered</span>
+            <span className="bg-gradient-to-br from-brand-600 to-brand-800 bg-clip-text text-transparent">Explorador</span>
+            <span className="px-2 py-0.5 bg-brand-50 text-brand-700 text-[10px] uppercase tracking-widest rounded-full border border-brand-100">Freshchat</span>
           </h1>
           <p className="text-surface-500 text-sm mt-1.5 font-medium">Pesquise e selecione conversas para análise estratégica.</p>
         </div>
@@ -260,8 +260,8 @@ export const ConversationExplorer = () => {
           <button
             onClick={() => setSearchMode('id')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${searchMode === 'id'
-                ? 'bg-white text-brand-700 shadow-sm'
-                : 'text-surface-500 hover:text-surface-900 hover:bg-surface-200/50'
+              ? 'bg-white text-brand-700 shadow-sm'
+              : 'text-surface-500 hover:text-surface-900 hover:bg-surface-200/50'
               }`}
           >
             <Hash className="w-3.5 h-3.5" />
@@ -270,8 +270,8 @@ export const ConversationExplorer = () => {
           <button
             onClick={() => setSearchMode('email')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${searchMode === 'email'
-                ? 'bg-white text-brand-700 shadow-sm'
-                : 'text-surface-500 hover:text-surface-900 hover:bg-surface-200/50'
+              ? 'bg-white text-brand-700 shadow-sm'
+              : 'text-surface-500 hover:text-surface-900 hover:bg-surface-200/50'
               }`}
           >
             <Mail className="w-3.5 h-3.5" />
@@ -393,7 +393,7 @@ export const ConversationExplorer = () => {
                 </>
               }
             </button>
-            
+
             {(selectedIds.size > 1 || (searchMode === 'email' && conversations.length > 1)) && (
               <button
                 onClick={() => handleAnalyze('history')}
@@ -515,8 +515,8 @@ export const ConversationExplorer = () => {
                           </span>
                           {conv.status && (
                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase tracking-wider ${conv.status === 'Resolved'
-                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                : 'bg-brand-50 text-brand-600 border-brand-100'
+                              ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                              : 'bg-brand-50 text-brand-600 border-brand-100'
                               }`}>
                               {conv.status}
                             </span>
@@ -566,8 +566,8 @@ export const ConversationExplorer = () => {
                   <button
                     onClick={() => setShowPrivate(!showPrivate)}
                     className={`btn text-xs font-bold uppercase tracking-wider px-4 ${showPrivate
-                        ? 'bg-amber-50 text-amber-700 border-amber-200'
-                        : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
+                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                      : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
                       }`}
                   >
                     Notas Privadas: {showPrivate ? 'ON' : 'OFF'}
@@ -611,10 +611,10 @@ export const ConversationExplorer = () => {
 
                         <div
                           className={`max-w-[85%] group relative ${isUser
-                              ? 'bg-white text-surface-800 rounded-2xl rounded-tl-none border border-surface-200/50 shadow-soft'
-                              : isPrivate
-                                ? 'bg-amber-50 text-amber-900 rounded-2xl rounded-tr-none border border-amber-200 shadow-soft'
-                                : 'bg-brand-600 text-white rounded-2xl rounded-tr-none shadow-soft-brand'
+                            ? 'bg-white text-surface-800 rounded-2xl rounded-tl-none border border-surface-200/50 shadow-soft'
+                            : isPrivate
+                              ? 'bg-amber-50 text-amber-900 rounded-2xl rounded-tr-none border border-amber-200 shadow-soft'
+                              : 'bg-brand-600 text-white rounded-2xl rounded-tr-none shadow-soft-brand'
                             }`}
                         >
                           <div
@@ -652,10 +652,10 @@ export const ConversationExplorer = () => {
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${isUser
-                                          ? 'bg-surface-50 border-surface-200 text-surface-700 hover:bg-surface-100'
-                                          : isPrivate
-                                            ? 'bg-amber-100 border-amber-200 text-amber-800 hover:bg-amber-200'
-                                            : 'bg-black/10 border-transparent text-white hover:bg-black/20'
+                                        ? 'bg-surface-50 border-surface-200 text-surface-700 hover:bg-surface-100'
+                                        : isPrivate
+                                          ? 'bg-amber-100 border-amber-200 text-amber-800 hover:bg-amber-200'
+                                          : 'bg-black/10 border-transparent text-white hover:bg-black/20'
                                         }`}
                                     >
                                       <Paperclip className="w-3.5 h-3.5" />
