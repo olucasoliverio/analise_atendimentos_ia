@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 
 import { randomUUID } from 'crypto';
+import { Prisma } from '@prisma/client';
 import { FreshchatCacheService } from '../services/freshchat-cache.service';
 import { AnalysisJobService } from '../services/analysis-job.service';
 import { GeminiService } from '../services/gemini.service';
@@ -31,6 +32,16 @@ export class AnalysisController {
   private getEnvInt(name: string, fallback: number): number {
     const parsed = Number(process.env[name]);
     return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+  }
+
+  private async linkAnalysisToUserHistory(userId: string, analysisId: string) {
+    await prisma.analysisHistory.upsert({
+      where: {
+        userId_analysisId: { userId, analysisId }
+      },
+      update: { viewedAt: new Date() },
+      create: { userId, analysisId }
+    });
   }
 
   private async bootstrapJobs() {
@@ -216,13 +227,7 @@ export class AnalysisController {
 
       if (existing) {
         // Vincula a análise ao histórico do usuário se já existir
-        await prisma.analysisHistory.upsert({
-          where: {
-            userId_analysisId: { userId, analysisId: existing.id }
-          },
-          update: { viewedAt: new Date() },
-          create: { userId, analysisId: existing.id }
-        });
+        await this.linkAnalysisToUserHistory(userId, existing.id);
 
         return { analysis: existing, cached: true };
       }
@@ -336,9 +341,32 @@ export class AnalysisController {
       analysisData.keyEvidences = parsedData.evidenciasChave;
     }
 
-    const analysis = await prisma.analysis.create({
-      data: analysisData
-    });
+    let analysis;
+    try {
+      analysis = await prisma.analysis.create({
+        data: analysisData
+      });
+    } catch (error) {
+      if (
+        analysisType === 'individual' &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002' &&
+        Array.isArray(error.meta?.target) &&
+        error.meta.target.includes('conversationId')
+      ) {
+        const existing = await prisma.analysis.findUnique({
+          where: { conversationId: mainConversation.id }
+        });
+
+        if (existing) {
+          await this.linkAnalysisToUserHistory(userId, existing.id);
+          onProgress?.(100, 'Concluido!');
+          return { analysis: existing, cached: true };
+        }
+      }
+
+      throw error;
+    }
 
     onProgress?.(100, 'Concluído!');
 
