@@ -156,8 +156,8 @@ export const Dashboard = () => {
     .slice(0, 5);
 
   return (
-    <div className="absolute inset-0 overflow-y-auto bg-surface-50">
-      <div className="mx-auto max-w-6xl px-6 py-10 sm:px-8">
+    <div className="w-full min-h-screen bg-surface-50">
+      <div className="mx-auto max-w-6xl px-6 py-10 pt-20 lg:pt-10 sm:px-8">
         <div className="mb-8 flex flex-col gap-3 animate-fade-in">
           <h1 className="flex items-center gap-3 text-3xl font-display font-bold text-surface-900">
             <Sparkles className="h-8 w-8 text-brand-500" />

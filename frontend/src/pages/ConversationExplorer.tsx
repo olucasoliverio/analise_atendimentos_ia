@@ -225,7 +225,7 @@ export const ConversationExplorer = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-surface-50 p-6 overflow-hidden">
+    <div className="h-screen flex flex-col bg-surface-50 p-6 pt-20 lg:pt-6 overflow-hidden">
       <ActivityOverlay
         open={loading}
         icon={Search}

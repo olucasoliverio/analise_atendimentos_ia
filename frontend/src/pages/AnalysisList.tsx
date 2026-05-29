@@ -296,8 +296,8 @@ export const AnalysisList = () => {
   if (loading) return <Loading />;
 
   return (
-    <div className="absolute inset-0 overflow-y-auto bg-surface-50">
-      <div className="mx-auto max-w-6xl px-6 py-10 sm:px-8">
+    <div className="w-full min-h-screen bg-surface-50">
+      <div className="mx-auto max-w-6xl px-6 py-10 pt-20 lg:pt-10 sm:px-8">
         <div className="mb-8 flex flex-col justify-between gap-6 animate-fade-in md:flex-row md:items-end">
           <div className="flex-1">
             <h1 className="flex items-center gap-3 text-3xl font-display font-bold text-surface-900">

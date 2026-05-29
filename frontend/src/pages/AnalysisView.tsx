@@ -605,7 +605,7 @@ export const AnalysisView = () => {
 
       {/* Top Header */}
       <div className="bg-white border-b border-surface-200 sticky top-0 z-30 shadow-sm print-hidden">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 pl-20 lg:pl-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <button
               onClick={() => navigate('/analyses')}
